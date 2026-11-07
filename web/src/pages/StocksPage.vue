@@ -11,7 +11,8 @@ const keyword = ref('')
 const brandFilter = ref('')
 const loading = ref(true)
 const error = ref<string | null>(null)
-const tab = ref<'list' | 'favorites' | 'map' | 'import'>('list')
+// 默认进收藏：型号库里常用的是最近用过的几只
+const tab = ref<'list' | 'favorites' | 'map' | 'import'>('favorites')
 
 // 文本导入
 const importText = ref('')
