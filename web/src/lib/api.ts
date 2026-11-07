@@ -10,9 +10,17 @@ export class ApiError extends Error {
   constructor(
     readonly status: number,
     message: string,
+    /** 服务端附加的结构化信息，如批量建档撞号时的重复编号列表 */
+    readonly data: Record<string, unknown> = {},
   ) {
     super(message)
     this.name = 'ApiError'
+  }
+
+  /** 批量建档撞号：服务端返回的重复编号 */
+  get conflicts(): { code: string }[] | null {
+    const v = this.data.conflicts
+    return Array.isArray(v) ? (v as { code: string }[]) : null
   }
 }
 
@@ -38,7 +46,11 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
       data && typeof data === 'object' && 'error' in data
         ? String((data as { error: unknown }).error)
         : `请求失败（${res.status}）`
-    throw new ApiError(res.status, message)
+    throw new ApiError(
+      res.status,
+      message,
+      data && typeof data === 'object' ? (data as Record<string, unknown>) : {},
+    )
   }
 
   return data as T

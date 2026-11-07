@@ -91,3 +91,46 @@ describe('recordProgress 状态流转', () => {
     expect(p!.address).toBeNull()
   })
 })
+
+describe('批量建档的编号冲突策略', () => {
+  async function seed() {
+    const { allocateSeq, ConflictError } = await import('../src/lib/allocate.js')
+    return { allocateSeq, ConflictError }
+  }
+
+  it('strict：任一编号已存在就报错并列出重复项', async () => {
+    const { allocateSeq, ConflictError } = await seed()
+    // beforeEach 已建 KG2T001，这里从 001 起取 3 个，必然撞
+    let err: unknown
+    try {
+      allocateSeq(db, { prefix: 'KG2T', startSeq: 1, count: 3, onConflict: 'strict' })
+    } catch (e) {
+      err = e
+    }
+    expect(err).toBeInstanceOf(ConflictError)
+    expect((err as InstanceType<typeof ConflictError>).conflicts).toEqual([
+      { serialTxt: '001', code: 'KG2T001' },
+    ])
+    // 报错时不得写入任何号
+    expect(db.select().from(roll).all()).toHaveLength(1)
+  })
+
+  it('strict：无冲突时连续分配', async () => {
+    const { allocateSeq } = await seed()
+    const out = allocateSeq(db, { prefix: 'KG2T', startSeq: 10, count: 3, onConflict: 'strict' })
+    expect(out.map((r) => r.code)).toEqual(['KG2T010', 'KG2T011', 'KG2T012'])
+  })
+
+  it('append 仍可显式顺延到最大号之后', async () => {
+    const { allocateSeq } = await seed()
+    // beforeEach 的 seq_max = 1
+    const out = allocateSeq(db, { prefix: 'KG2T', count: 2, onConflict: 'append' })
+    expect(out.map((r) => r.code)).toEqual(['KG2T002', 'KG2T003'])
+  })
+
+  it('skip 跳过已占用的号', async () => {
+    const { allocateSeq } = await seed()
+    const out = allocateSeq(db, { prefix: 'KG2T', startSeq: 1, count: 2, onConflict: 'skip' })
+    expect(out.map((r) => r.code)).toEqual(['KG2T002', 'KG2T003'])
+  })
+})

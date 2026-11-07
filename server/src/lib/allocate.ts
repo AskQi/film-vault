@@ -5,9 +5,10 @@
  *   - seq_max 只增不减，删除卷后编号不会被回收重用
  *   - 批量建档一次预留 N 个
  *
- * 两种冲突策略：
- *   append — 从 seq_max+1 起连续取 N 个（默认，最常用）
+ * 三种冲突策略：
+ *   strict — 从指定 startSeq 起连续 N 个，任何一个已被占用就报错并列出（默认）
  *   skip   — 从指定 startSeq 起取 N 个可用号，跳过已被占用的
+ *   append — 忽略 startSeq，从 seq_max+1 起连续取 N 个
  */
 import { and, eq, gte, lte, isNull } from 'drizzle-orm'
 import type { Db } from '../db/client.js'
@@ -27,7 +28,22 @@ export interface AllocateOptions {
   /** append 策略下忽略 */
   startSeq?: number
   count: number
-  onConflict: 'skip' | 'append'
+  onConflict: 'strict' | 'skip' | 'append'
+}
+
+/** 严格模式下撞号的详情，路由层用它告诉用户具体是哪几个 */
+export interface ConflictDetail {
+  serialTxt: string
+  code: string
+}
+
+export class ConflictError extends AllocationError {
+  constructor(
+    message: string,
+    readonly conflicts: ConflictDetail[],
+  ) {
+    super(message)
+  }
 }
 
 /**
@@ -65,6 +81,23 @@ export function allocateSeq(db: Db, opts: AllocateOptions): AllocatedRoll[] {
     if (start + count - 1 > MAX_SEQ) {
       throw new AllocationError(
         `前缀 ${prefix} 剩余容量不足（当前 ${row.seqMax}，需再分配 ${count}）。请为该型号追加备用前缀。`,
+      )
+    }
+    for (let i = 0; i < count; i++) picked.push(start + i)
+  } else if (onConflict === 'strict') {
+    if (start + count - 1 > MAX_SEQ) {
+      throw new AllocationError(
+        `从 ${serialFromSeq(start)} 起连续 ${count} 个号超出上限 ${serialFromSeq(MAX_SEQ)}`,
+      )
+    }
+    const occupied = taken(start, start + count - 1)
+    if (occupied.size > 0) {
+      const conflicts: ConflictDetail[] = [...occupied]
+        .sort((a, b) => a - b)
+        .map((seq) => ({ serialTxt: serialFromSeq(seq), code: buildRollCode(prefix, seq) }))
+      throw new ConflictError(
+        `编号已存在：${conflicts.map((c) => c.code).join('、')}`,
+        conflicts,
       )
     }
     for (let i = 0; i < count; i++) picked.push(start + i)

@@ -11,7 +11,7 @@ import {
   type RollStatus,
 } from '@film-vault/shared'
 import { roll, box, filmStock, stockPrefix, rollProgress } from '../db/schema/index.js'
-import { allocateSeq, AllocationError } from '../lib/allocate.js'
+import { allocateSeq, AllocationError, ConflictError } from '../lib/allocate.js'
 import { findStockByPrefix, recordPending } from '../lib/stocks.js'
 
 const createRollSchema = z.object({
@@ -238,6 +238,10 @@ export const rollRoutes: FastifyPluginAsync = async (app) => {
         rolls: result.rolls,
       })
     } catch (e) {
+      // 编号重复单独返回明细，前端逐条列出
+      if (e instanceof ConflictError) {
+        return reply.code(409).send({ error: e.message, conflicts: e.conflicts })
+      }
       if (e instanceof AllocationError) return reply.code(409).send({ error: e.message })
       throw e
     }

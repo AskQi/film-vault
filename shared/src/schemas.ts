@@ -108,8 +108,13 @@ export const batchRollInputSchema = z.object({
   startSeq: seqSchema,
   count: z.number().int().min(1).max(50),
   framesTotal: z.number().int().min(1).max(200),
-  /** 冲突策略：skip=跳过已占用，append=顺延到最大号之后 */
-  onConflict: z.enum(['skip', 'append']).default('append'),
+  /**
+   * 冲突策略：
+   *   strict — 起始序号往后的连续 N 个号里只要有一个已存在，就报错并列出重复项（默认）
+   *   skip   — 跳过已占用的号，往后取满 N 个
+   *   append — 忽略起始序号，从该前缀最大号之后顺延
+   */
+  onConflict: z.enum(['strict', 'skip', 'append']).default('strict'),
   box: z
     .object({
       label: z.string().max(120).optional(),

@@ -2,7 +2,7 @@
 /** 建档：单卷 / 批量。型号选择后自动带出前缀与下一个编号。 */
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { api } from '../lib/api.js'
+import { api, ApiError } from '../lib/api.js'
 import type { Stock } from '../lib/types.js'
 import ScanSheet from '../components/ScanSheet.vue'
 
@@ -15,6 +15,8 @@ const serial = ref('')
 const count = ref(5)
 const framesTotal = ref(36)
 const error = ref<string | null>(null)
+/** 批量建档撞号时服务端返回的重复编号 */
+const conflicts = ref<{ serialTxt?: string; code: string }[]>([])
 const submitting = ref(false)
 const created = ref<{ code: string; id: number }[]>([])
 const scannerOpen = ref(false)
@@ -139,15 +141,18 @@ async function refreshNext() {
     nextHint.value = await api.get<{ code: string; seq: number; serialTxt: string }>(
       `/stocks/${stockId.value}/next-serial`,
     )
-    if (mode.value === 'batch' && !serial.value) serial.value = nextHint.value.serialTxt
+    if (!serial.value) serial.value = nextHint.value.serialTxt
   } catch {
     nextHint.value = null
   }
 }
 
 watch(stockId, async () => {
+  // 先清空，refreshNext 会把「下一个可用」直接填进序号框：
+  // 不想要就手动改，想用直接提交，不必再复制粘贴
   serial.value = ''
   await refreshNext()
+  if (nextHint.value && !serial.value) serial.value = nextHint.value.serialTxt
   const s = selected.value
   if (s?.defaultFrames) framesTotal.value = s.defaultFrames
   else if (s?.format === '120') framesTotal.value = 12
@@ -161,6 +166,7 @@ async function submit() {
   }
   submitting.value = true
   error.value = null
+  conflicts.value = []
   try {
     if (mode.value === 'single') {
       const code = prefix.value + serial.value
@@ -172,14 +178,18 @@ async function submit() {
     } else {
       const startSeq = parseSerialLocal(serial.value)
       if (startSeq === null) throw new Error('起始序号不合法')
-      const res = await api.post<{ rolls: { id: number; code: string }[] }>('/rolls/batch', {
-        prefix: prefix.value,
-        startSeq,
-        count: count.value,
-        framesTotal: framesTotal.value,
-        onConflict: 'append',
-        box: { label: new Date().toISOString().slice(0, 10) },
-      })
+      // strict：从起始序号起连续 N 个，只要有一个已存在就报错，绝不自动顺延
+      const res = await api.post<{ rolls: { id: number; code: string }[]; conflicts?: { code: string }[] }>(
+        '/rolls/batch',
+        {
+          prefix: prefix.value,
+          startSeq,
+          count: count.value,
+          framesTotal: framesTotal.value,
+          onConflict: 'strict',
+          box: { label: new Date().toISOString().slice(0, 10) },
+        },
+      )
       created.value = res.rolls
     }
 
@@ -193,6 +203,7 @@ async function submit() {
     }
   } catch (e) {
     error.value = (e as Error).message
+    conflicts.value = e instanceof ApiError ? (e.conflicts ?? []) : []
   } finally {
     submitting.value = false
   }
@@ -370,9 +381,21 @@ onMounted(loadStocks)
         </div>
       </section>
 
-      <p v-if="error" class="mb-4 rounded-xl border border-red-900 bg-red-950/40 p-3 text-sm text-red-300">
-        {{ error }}
-      </p>
+      <div v-if="error" class="mb-4 rounded-xl border border-red-900 bg-red-950/40 p-3 text-sm text-red-300">
+        <p>{{ error }}</p>
+        <div v-if="conflicts.length" class="mt-2">
+          <p class="text-xs text-slate-400">以下编号已存在，未做任何改动：</p>
+          <div class="mt-1 flex flex-wrap gap-1.5">
+            <span
+              v-for="c in conflicts"
+              :key="c.code"
+              class="code-text rounded-lg bg-red-900/40 px-2 py-1 text-xs"
+            >
+              {{ c.code }}
+            </span>
+          </div>
+        </div>
+      </div>
 
       <button
         :disabled="submitting || !stockId || !serial"
