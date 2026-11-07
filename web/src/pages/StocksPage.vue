@@ -9,11 +9,9 @@ const stocks = ref<Stock[]>([])
 const prefixMap = ref<PrefixMapResponse | null>(null)
 const keyword = ref('')
 const brandFilter = ref('')
-/** 只看收藏 */
-const favOnly = ref(false)
 const loading = ref(true)
 const error = ref<string | null>(null)
-const tab = ref<'list' | 'map' | 'import'>('list')
+const tab = ref<'list' | 'favorites' | 'map' | 'import'>('list')
 
 // 文本导入
 const importText = ref('')
@@ -32,7 +30,6 @@ const filtered = computed(() => {
   const kw = keyword.value.trim().toLowerCase()
   return stocks.value.filter((s) => {
     if (brandFilter.value && s.brandCode !== brandFilter.value) return false
-    if (favOnly.value && !s.favoritedAt) return false
     if (!kw) return true
     return (
       s.name.toLowerCase().includes(kw) ||
@@ -42,7 +39,21 @@ const filtered = computed(() => {
   })
 })
 
+/** 收藏的型号，按收藏时间倒序（最近建档/收藏的在前） */
+const favoriteStocks = computed(() =>
+  filtered.value
+    .filter((s) => s.favoritedAt)
+    .sort((a, b) => (b.favoritedAt ?? '').localeCompare(a.favoritedAt ?? '')),
+)
+
 const grouped = computed(() => {
+  // 收藏页签：一个平铺列表，按最近使用排序，不再按品牌分组
+  if (tab.value === 'favorites') {
+    return favoriteStocks.value.length
+      ? [{ code: '_fav', name: `收藏 ${favoriteStocks.value.length}`, items: favoriteStocks.value }]
+      : []
+  }
+
   const map = new Map<string, Stock[]>()
   for (const s of filtered.value) {
     const list = map.get(s.brandCode) ?? []
@@ -178,6 +189,13 @@ onMounted(load)
       </button>
       <button
         class="flex-1 rounded-lg py-2 text-sm"
+        :class="tab === 'favorites' ? 'bg-slate-800 text-slate-100' : 'text-slate-400'"
+        @click="tab = 'favorites'"
+      >
+        收藏 {{ favCount }}
+      </button>
+      <button
+        class="flex-1 rounded-lg py-2 text-sm"
         :class="tab === 'map' ? 'bg-slate-800 text-slate-100' : 'text-slate-400'"
         @click="tab = 'map'"
       >
@@ -196,8 +214,8 @@ onMounted(load)
       {{ error }}
     </p>
 
-    <!-- 列表 -->
-    <template v-if="tab === 'list'">
+    <!-- 列表 / 收藏：同一套卡片，收藏页按最近使用排序且不分组 -->
+    <template v-if="tab === 'list' || tab === 'favorites'">
       <div class="mb-4 flex gap-2">
         <input
           v-model="keyword"
@@ -211,17 +229,16 @@ onMounted(load)
           <option value="">全部品牌</option>
           <option v-for="b in BRANDS" :key="b.code" :value="b.code">{{ b.name }}</option>
         </select>
-        <button
-          class="shrink-0 rounded-xl border px-3 py-3 text-sm"
-          :class="favOnly ? 'border-amber-500 bg-amber-500/15 text-amber-300' : 'border-slate-800 bg-slate-900 text-slate-400'"
-          :aria-pressed="favOnly"
-          @click="favOnly = !favOnly"
-        >
-          ★ {{ favCount }}
-        </button>
       </div>
 
       <div v-if="loading" class="py-16 text-center text-slate-500">加载中…</div>
+
+      <div v-else-if="grouped.length === 0" class="rounded-2xl border border-dashed border-slate-800 px-6 py-14 text-center">
+        <div class="mb-2 text-3xl">☆</div>
+        <p class="text-sm text-slate-400">还没有收藏的型号</p>
+        <p class="mt-1 text-xs text-slate-600">点型号左侧的星标即可收藏；每次建档也会自动收藏该型号</p>
+        <button class="mt-4 text-sm text-amber-500" @click="tab = 'list'">去看全部型号 ›</button>
+      </div>
 
       <div v-else class="space-y-6">
         <section v-for="group in grouped" :key="group.code">
