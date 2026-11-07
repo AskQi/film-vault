@@ -20,6 +20,8 @@ export interface StockRow {
   colorType: string | null
   status: string
   notes: string | null
+  /** 包装条码（EAN/UPC）。一列一个，留空表示尚未绑定 */
+  barcodes: string[]
 }
 
 /** 必需列，缺任何一列直接报错 */
@@ -116,6 +118,11 @@ export function parseStocksTsv(text: string): ParsedStocks {
       colorType: opt(col('color_type')),
       status: col('status') || 'active',
       notes: opt(col('notes')),
+      // 同一行可以写多个条码，用逗号或分号分隔
+      barcodes: col('barcode')
+        .split(/[,;，；\s]+/)
+        .map((b) => b.trim())
+        .filter(Boolean),
     })
   })
 

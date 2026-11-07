@@ -82,7 +82,7 @@ nginx 配置与证书申请见 [部署说明](docs/04-部署说明.md)。HTTPS �
 
 ```
 docs/      需求、方案、规划
-data/      型号库 seed 数据（film-stocks.tsv，139 条，进版本库）
+data/      型号库 seed 数据（film-stocks.tsv，139 条 + 已知包装条码，进版本库）
 shared/    Zod schema、码表常量、编号解析（前后端共用）
 server/    Fastify 服务端 + Drizzle + 迁移
 web/       Vue 3 PWA

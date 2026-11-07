@@ -13,5 +13,7 @@ import { bootstrapDb } from './bootstrap.js'
 
 const dbPath = `${dataDir}/film-vault.db`
 const result = bootstrapDb(createDb(dbPath))
-console.log(`✓ 型号库：新增 ${result.inserted}，更新 ${result.updated}，系列 ${result.seriesInserted}`)
+console.log(
+  `✓ 型号库：新增 ${result.inserted}，更新 ${result.updated}，系列 ${result.seriesInserted}，条码 ${result.barcodesBound}`,
+)
 console.log(`  数据库：${dbPath}`)
