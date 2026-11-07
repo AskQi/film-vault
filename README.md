@@ -20,7 +20,7 @@
 - 前端：Vue 3 + TypeScript + Vite + Pinia + Tailwind + PWA
 - 后端：Node 22 + Fastify + Zod + Drizzle ORM
 - 数据库：SQLite（WAL）
-- 部署：Docker Compose + Caddy（自动 HTTPS）
+- 部署：Docker Compose + 宿主机 nginx（certbot 证书）
 
 ## 快速开始
 
@@ -58,12 +58,14 @@ node server/dist/index.js               # 单进程同时提供 API 与页面
 
 ## 部署
 
+生产地址：**https://film.ddns.sharepeople.cn**（宿主机 nginx 反代到 app 容器）
+
 ```bash
-cp .env.example .env    # 填 PIN、SESSION_SECRET、SITE_ADDRESS
-docker compose up -d
+cp .env.example .env    # 填 PIN、SESSION_SECRET、AMAP_KEY
+docker compose up -d --build
 ```
 
-HTTPS 是硬约束：没有 HTTPS，手机浏览器不允许调用摄像头，扫码功能不可用。Caddy 自动签发证书。
+nginx 配置与证书申请见 [部署说明](docs/04-部署说明.md)。HTTPS 是硬约束：没有它，手机浏览器不允许调用摄像头和定位。
 
 ## 目录结构
 

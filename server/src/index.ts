@@ -1,17 +1,18 @@
 /**
  * 服务端启动入口。
  *
- * 启动时自动应用迁移，保证容器首次启动即可用。
+ * 启动时自动迁移并写入码表与型号库（幂等），保证容器首次启动即可用。
  */
 import { buildApp } from './app.js'
 import { assertProdConfig, config, resolveStoragePath } from './config.js'
-import { createDb, runMigrations } from './db/client.js'
+import { createDb } from './db/client.js'
+import { bootstrapDb } from './db/bootstrap.js'
 
 async function main() {
   assertProdConfig()
 
   const db = createDb(resolveStoragePath('film-vault.db'))
-  runMigrations(db)
+  bootstrapDb(db)
 
   const app = await buildApp({ db, logger: true })
 

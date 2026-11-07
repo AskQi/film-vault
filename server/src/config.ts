@@ -11,8 +11,13 @@ import { dirname } from 'node:path'
 import { existsSync } from 'node:fs'
 
 const here = dirname(fileURLToPath(import.meta.url))
-/** server/ 目录（dev 时是 src/，build 后是 dist/，都上溯一层到 server/） */
-const serverRoot = resolve(here, '..')
+/**
+ * server/ 目录。本文件 dev 时位于 src/config.ts，打包后内联进 dist/index.js，
+ * 两种情况所在目录都比 server/ 深一层，所以上溯一层即可。
+ * 其他模块需要定位 server/ 下的文件时一律用它，不要各自用 import.meta.url 推算
+ * ——打包成单文件后，各模块的 import.meta.url 都变成 dist/index.js。
+ */
+export const serverRoot = resolve(here, '..')
 
 /** 仓库根目录 */
 export const repoRoot = resolve(serverRoot, '..')

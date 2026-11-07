@@ -10,8 +10,7 @@
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
-    "db:seed": "tsx src/db/seed.ts",
-    "db:import-stocks": "tsx src/db/import-stocks.ts"
+    "db:seed": "tsx src/db/seed.ts"
   },
   "dependencies": {
     "@fastify/cookie": "^11.1.5",

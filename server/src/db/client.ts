@@ -7,14 +7,14 @@ import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { mkdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
 
 import * as schema from './schema/index.js'
+import { serverRoot } from '../config.js'
 
 export type Db = BetterSQLite3Database<typeof schema>
 
-/** drizzle/ 迁移目录（相对 server/，dev 与 build 后位置一致） */
-const MIGRATIONS_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '../../drizzle')
+/** server/drizzle/ 迁移目录 */
+const MIGRATIONS_DIR = resolve(serverRoot, 'drizzle')
 
 /** 打开数据库连接并设置 pragma。测试时传 ':memory:' 即可。 */
 export function createDb(file: string): Db {

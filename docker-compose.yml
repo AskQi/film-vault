@@ -1,10 +1,17 @@
+# 默认部署形态：宿主机已有 nginx 负责 80/443 与证书，app 只监听本机回环端口。
+#   docker compose up -d
+# nginx 站点配置见 deploy/nginx/film-vault.conf，步骤见 docs/04-部署说明.md。
+#
+# 备选：宿主机没有 nginx 时，可启用 Caddy 自动签证书（会占用 80/443）：
+#   docker compose --profile caddy up -d
+
 services:
   app:
     build: .
     image: film-vault:latest
     restart: unless-stopped
     environment:
-      # 生产环境必须改掉默认值，且长度建议 6 位以上
+      # 必填。生产环境不允许使用默认值 1234，否则拒绝启动
       PIN: ${PIN:?请在 .env 中设置 PIN}
       # 固定会话签名密钥，否则每次重启都会让所有设备掉登录
       SESSION_SECRET: ${SESSION_SECRET:?请在 .env 中设置 SESSION_SECRET}
@@ -13,15 +20,16 @@ services:
       DATA_DIR: /app/storage
       TZ: Asia/Shanghai
     volumes:
-      # SQLite 库、uploads、备份都在这里；整目录复制即是备份
+      # SQLite 库、uploads 都在这里；整目录复制即是备份
       - ./storage:/app/storage
-    # 不直接对公网暴露端口，只让 caddy 访问
-    expose:
-      - '3300'
+    # 只绑定回环地址：外部只能经 nginx（HTTPS）访问，不能绕过直连 3300
+    ports:
+      - '127.0.0.1:3300:3300'
     networks:
       - web
 
   caddy:
+    profiles: ['caddy']
     image: caddy:2
     restart: unless-stopped
     ports:
@@ -29,8 +37,7 @@ services:
       - '443:443'
       - '443:443/udp'
     environment:
-      # 域名由 Caddyfile 引用，例如 film.example.com
-      SITE_ADDRESS: ${SITE_ADDRESS:?请在 .env 中设置 SITE_ADDRESS，如 film.example.com}
+      SITE_ADDRESS: ${SITE_ADDRESS:?请在 .env 中设置 SITE_ADDRESS}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data

@@ -45,6 +45,10 @@ export async function buildApp({ db, logger = false }: BuildAppOptions): Promise
         }
       : false,
     bodyLimit: 4 * 1024 * 1024,
+    // 生产部署在宿主机 nginx 之后。容器端口只绑宿主机 127.0.0.1，外部连不进来；
+    // 但经 Docker 端口映射进入容器后，来源地址是网桥网关（172.x），不是 127.0.0.1，
+    // 所以信任回环 + 私有网段的 X-Forwarded-*，用于日志记录真实客户端 IP
+    trustProxy: ['127.0.0.1', '::1', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16'],
   })
 
   await app.register(cookie)
