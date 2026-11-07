@@ -31,6 +31,9 @@ const listQuerySchema = z.object({
   prefix: z.string().optional(),
   camera: z.coerce.number().int().positive().optional(),
   q: z.string().optional(),
+  /** 时间区间：按建档时间过滤，闭区间 */
+  from: z.string().optional(),
+  to: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(200).default(100),
 })
 
@@ -49,6 +52,8 @@ export const rollRoutes: FastifyPluginAsync = async (app) => {
     if (q.prefix) where.push(eq(roll.prefix, q.prefix))
     if (q.camera) where.push(eq(roll.cameraId, q.camera))
     if (q.q) where.push(like(roll.code, `%${q.q}%`))
+    if (q.from) where.push(sql`${roll.createdAt} >= ${q.from}`)
+    if (q.to) where.push(sql`${roll.createdAt} <= ${q.to}`)
 
     const rows = db
       .select({

@@ -20,6 +20,8 @@ import { progressRoutes } from './routes/progress.js'
 import { labelRoutes } from './routes/labels.js'
 import { cameraRoutes } from './routes/cameras.js'
 import { statsRoutes } from './routes/stats.js'
+import { frameNoteRoutes } from './routes/frame-notes.js'
+import { developmentRoutes } from './routes/developments.js'
 
 /** 不需要登录的路径（/api 下） */
 const PUBLIC_API_PATHS = new Set(['/api/auth/login', '/api/auth/session', '/api/health'])
@@ -66,6 +68,8 @@ export async function buildApp({ db, logger = false }: BuildAppOptions): Promise
   await app.register(labelRoutes, { prefix: '/api/labels' })
   await app.register(cameraRoutes, { prefix: '/api' })
   await app.register(statsRoutes, { prefix: '/api' })
+  await app.register(frameNoteRoutes, { prefix: '/api' })
+  await app.register(developmentRoutes, { prefix: '/api' })
 
   // 统一错误处理
   app.setErrorHandler((err: Error & { statusCode?: number }, _req, reply) => {

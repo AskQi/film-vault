@@ -11,6 +11,9 @@ const loading = ref(true)
 const error = ref<string | null>(null)
 const status = ref<string>('')
 const keyword = ref('')
+const from = ref('')
+const to = ref('')
+const showAdvanced = ref(false)
 
 const filters = computed(() => [
   { value: '', label: '全部' },
@@ -24,6 +27,9 @@ async function load() {
     const params = new URLSearchParams()
     if (status.value) params.set('status', status.value)
     if (keyword.value.trim()) params.set('q', keyword.value.trim())
+    // 时间区间按建档时间过滤；补足时分秒，保证「当天」也算进来
+    if (from.value) params.set('from', `${from.value}T00:00:00.000Z`)
+    if (to.value) params.set('to', `${to.value}T23:59:59.999Z`)
     const res = await api.get<{ items: RollListItem[] }>(`/rolls?${params}`)
     rolls.value = res.items
   } catch (e) {
@@ -51,6 +57,32 @@ onMounted(load)
         @keyup.enter="load"
       />
       <button class="rounded-xl bg-slate-800 px-4 py-3 text-sm" @click="load">搜索</button>
+    </div>
+
+    <button class="mb-3 text-xs text-slate-500" @click="showAdvanced = !showAdvanced">
+      {{ showAdvanced ? '收起筛选' : '时间区间筛选' }}
+    </button>
+    <div v-if="showAdvanced" class="mb-4 flex items-center gap-2">
+      <input
+        v-model="from"
+        type="date"
+        class="min-w-0 flex-1 rounded-xl border border-slate-800 bg-slate-900 px-3 py-2.5 text-sm outline-none focus:border-amber-500"
+        @change="load"
+      />
+      <span class="text-xs text-slate-600">至</span>
+      <input
+        v-model="to"
+        type="date"
+        class="min-w-0 flex-1 rounded-xl border border-slate-800 bg-slate-900 px-3 py-2.5 text-sm outline-none focus:border-amber-500"
+        @change="load"
+      />
+      <button
+        v-if="from || to"
+        class="shrink-0 text-xs text-slate-500"
+        @click="from = ''; to = ''; load()"
+      >
+        清除
+      </button>
     </div>
 
     <div class="mb-4 flex gap-2 overflow-x-auto pb-1">

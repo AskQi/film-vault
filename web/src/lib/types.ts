@@ -136,3 +136,44 @@ export interface ImportPreview {
   lines: ImportLine[]
   inserted?: { id: number; prefix: string; name: string }[]
 }
+
+export interface FrameNote {
+  id: number
+  rollId: number
+  frameNo: number
+  aperture: string | null
+  shutter: string | null
+  ei: number | null
+  evOffset: string | null
+  lensId: number | null
+  location: string | null
+  note: string | null
+  photoPath: string | null
+  happenedAt: string | null
+  createdAt: string
+}
+
+export interface Development {
+  id: number
+  rollId: number
+  method: 'self' | 'lab'
+  process: string | null
+  developer: string | null
+  dilution: string | null
+  tempC: number | null
+  durationSec: number | null
+  agitation: string | null
+  pushPull: number | null
+  labName: string | null
+  devAt: string | null
+  rating: number | null
+  issues: string | null
+  notes: string | null
+  createdAt: string
+}
+
+/** 时间线条目：进度快照与单张注解按时间交错 */
+export type TimelineEntry =
+  | { kind: 'progress'; at: string; data: ProgressEntry }
+  | { kind: 'frame'; at: string; data: FrameNote }
+  | { kind: 'development'; at: string; data: Development }
