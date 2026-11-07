@@ -63,7 +63,6 @@ onMounted(load)
         v-for="roll in rolls"
         :key="roll.id"
         :roll="roll"
-        @updated="load"
         @record="recording = roll"
       />
     </div>

@@ -4,6 +4,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { api } from '../lib/api.js'
 import type { RollListItem } from '../lib/types.js'
 import RollCard from '../components/RollCard.vue'
+import RecordSheet from '../components/RecordSheet.vue'
 import { ROLL_STATUSES, ROLL_STATUS_LABEL } from '@film-vault/shared/client'
 
 const rolls = ref<RollListItem[]>([])
@@ -14,6 +15,8 @@ const keyword = ref('')
 const from = ref('')
 const to = ref('')
 const showAdvanced = ref(false)
+/** 当前打开「记一笔」的胶卷 */
+const recording = ref<RollListItem | null>(null)
 
 const filters = computed(() => [
   { value: '', label: '全部' },
@@ -103,7 +106,14 @@ onMounted(load)
     </p>
     <p v-else-if="rolls.length === 0" class="py-16 text-center text-slate-500">没有符合条件的胶卷</p>
     <div v-else class="space-y-3">
-      <RollCard v-for="roll in rolls" :key="roll.id" :roll="roll" @updated="load" />
+      <RollCard v-for="roll in rolls" :key="roll.id" :roll="roll" @record="recording = roll" />
+
+      <RecordSheet
+        :open="recording !== null"
+        :roll="recording"
+        @close="recording = null"
+        @saved="load"
+      />
     </div>
   </div>
 </template>

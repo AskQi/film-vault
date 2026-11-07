@@ -64,6 +64,12 @@ function nowLocal(): string {
 }
 
 /** 识别编号：调用扫码分流，拿到已建档的卷后再取详情（当前进度） */
+/** 只有一个机身/镜头时自动选上；有多个时保留胶卷上已记的值 */
+function applyDefaults() {
+  if (!cameraId.value && cameras.value.length === 1) cameraId.value = cameras.value[0]!.id
+  if (!lensId.value && lenses.value.length === 1) lensId.value = lenses.value[0]!.id
+}
+
 async function lookup(raw: string) {
   const text = raw.trim()
   if (!text) return
@@ -81,6 +87,7 @@ async function lookup(raw: string) {
       rollInfo.value = { ...d, stockName: d.stock.name }
       codeInput.value = d.code
       resetForm()
+      applyDefaults()
     } else if (res.kind === 'roll' || res.kind === 'unknown_prefix') {
       notFoundCode.value = res.code ?? text
       notFoundStock.value =
@@ -335,14 +342,11 @@ watch(rollInfo, async (r) => {
 
         <!-- 时间：默认现在，可改 -->
         <div>
-          <div class="mb-1.5 flex items-center justify-between">
-            <label class="text-xs text-slate-400">时间</label>
-            <button class="text-xs text-amber-500" @click="happenedAt = nowLocal()">设为现在</button>
-          </div>
+          <label class="mb-1.5 block text-xs text-slate-400">时间（默认现在，可改）</label>
           <input
             v-model="happenedAt"
             type="datetime-local"
-            class="w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2.5 text-sm outline-none focus:border-amber-500"
+            class="w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-3 text-sm outline-none focus:border-amber-500"
           />
         </div>
 
@@ -355,14 +359,14 @@ watch(rollInfo, async (r) => {
             v-model="cameraId"
             class="w-full rounded-xl border border-slate-800 bg-slate-950 px-2 py-2.5 text-sm outline-none"
           >
-            <option :value="null">机身</option>
+            <option :value="null">机身（可选）</option>
             <option v-for="c in cameras" :key="c.id" :value="c.id">{{ c.model }}</option>
           </select>
           <select
             v-model="lensId"
             class="w-full rounded-xl border border-slate-800 bg-slate-950 px-2 py-2.5 text-sm outline-none"
           >
-            <option :value="null">镜头</option>
+            <option :value="null">镜头（可选）</option>
             <option v-for="l in lenses" :key="l.id" :value="l.id">{{ l.model }}</option>
           </select>
         </div>

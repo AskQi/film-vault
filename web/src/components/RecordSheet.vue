@@ -3,7 +3,7 @@
  * 记一笔底部抽屉。
  *
  * 设计目标：单手两步完成——打开 → 敲数字 / 点增量 → 保存。
- * 默认时间 = 现在；点「回填」才展开时间选择，避免高频操作被时间控件拖慢。
+ * 默认时间 = 现在，时间输入框直接展开（要回填过去时间直接改即可）；去掉了折叠开关。
  */
 import { computed, ref, watch } from 'vue'
 import { api } from '../lib/api.js'
@@ -15,11 +15,9 @@ const props = defineProps<{ open: boolean; roll: RollListItem | null }>()
 const emit = defineEmits<{ close: []; saved: [] }>()
 
 const target = ref<number>(0)
-const backfill = ref(false)
 const happenedAt = ref('')
 const note = ref('')
 const location = ref<LocationValue>({ lat: null, lng: null, address: '' })
-const showMore = ref(false)
 const cameraId = ref<number | null>(null)
 const lensId = ref<number | null>(null)
 const saving = ref(false)
@@ -44,8 +42,6 @@ watch(
     error.value = null
     note.value = ''
     location.value = { lat: null, lng: null, address: '' }
-    backfill.value = false
-    showMore.value = false
     happenedAt.value = nowLocal()
     target.value = props.roll?.reachedFrame ?? 0
 
@@ -56,6 +52,9 @@ watch(
       ])
       cameras.value = c.items
       lenses.value = l.items
+      // 只有一个机身/镜头时自动选上，省一步操作
+      if (c.items.length === 1) cameraId.value = c.items[0]!.id
+      if (l.items.length === 1) lensId.value = l.items[0]!.id
     } catch {
       // 机身镜头是可选信息，取不到不影响记录
     }
@@ -74,8 +73,8 @@ async function save() {
   try {
     await api.post(`/rolls/${props.roll.id}/progress`, {
       reachedFrame: target.value,
-      // 只有回填时才显式传时间，否则让服务端用当前时间
-      happenedAt: backfill.value && happenedAt.value ? new Date(happenedAt.value).toISOString() : undefined,
+      // 时间框始终可见且默认填当前时间，用户可能改过，所以总是传值
+      happenedAt: happenedAt.value ? new Date(happenedAt.value).toISOString() : undefined,
       note: note.value.trim() || null,
       lat: location.value.lat,
       lng: location.value.lng,
@@ -129,7 +128,7 @@ async function save() {
           <button
             v-for="d in [1, 2, 5, 10]"
             :key="d"
-            class="flex-1 rounded-xl bg-slate-800 py-3 text-base font-medium active:bg-slate-700"
+            class="flex-1 rounded-xl bg-slate-800 py-4 text-lg font-medium active:bg-slate-700"
             @click="bump(d)"
           >
             +{{ d }}
@@ -142,42 +141,31 @@ async function save() {
           class="mb-3 w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2.5 text-sm outline-none focus:border-amber-500"
         />
 
-        <!-- 时间：默认现在，回填才展开 -->
-        <div class="mb-3 flex items-center gap-2">
-          <button
-            class="rounded-xl px-3 py-2 text-xs"
-            :class="backfill ? 'bg-amber-500 text-slate-950' : 'bg-slate-800 text-slate-300'"
-            @click="backfill = !backfill"
-          >
-            回填时间
-          </button>
+        <!-- 时间：默认现在，要回填过去时间直接改 -->
+        <div class="mb-3">
+          <label class="mb-1.5 block text-xs text-slate-400">时间（默认现在，可改）</label>
           <input
-            v-if="backfill"
             v-model="happenedAt"
             type="datetime-local"
-            class="min-w-0 flex-1 rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-amber-500"
+            class="w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-3 text-sm outline-none focus:border-amber-500"
           />
-          <span v-else class="text-xs text-slate-500">记录时间 = 现在</span>
         </div>
 
-        <!-- 更多：机身 / 镜头 -->
-        <button class="mb-2 text-xs text-slate-500" @click="showMore = !showMore">
-          {{ showMore ? '收起' : '更多（地点 / 机身 / 镜头）' }}
-        </button>
-        <LocationField v-if="showMore" v-model="location" class="mb-3" />
-        <div v-if="showMore" class="mb-3 grid grid-cols-2 gap-2">
+        <!-- 地点 / 机身 / 镜头：直接展开，全部可选，不做校验 -->
+        <LocationField v-model="location" auto-locate class="mb-3" />
+        <div class="mb-3 grid grid-cols-2 gap-2">
           <select
             v-model.number="cameraId"
-            class="w-full rounded-xl border border-slate-800 bg-slate-950 px-2 py-2.5 text-sm outline-none"
+            class="w-full rounded-xl border border-slate-800 bg-slate-950 px-2 py-3 text-sm outline-none"
           >
-            <option :value="null">机身</option>
+            <option :value="null">机身（可选）</option>
             <option v-for="c in cameras" :key="c.id" :value="c.id">{{ c.model }}</option>
           </select>
           <select
             v-model.number="lensId"
-            class="w-full rounded-xl border border-slate-800 bg-slate-950 px-2 py-2.5 text-sm outline-none"
+            class="w-full rounded-xl border border-slate-800 bg-slate-950 px-2 py-3 text-sm outline-none"
           >
-            <option :value="null">镜头</option>
+            <option :value="null">镜头（可选）</option>
             <option v-for="l in lenses" :key="l.id" :value="l.id">{{ l.model }}</option>
           </select>
         </div>

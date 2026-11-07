@@ -2,15 +2,15 @@
 /**
  * 位置字段：定位 → 选地址 → 可编辑 / 清除。
  *
- * v-model 绑定 { lat, lng, address }，三项都可以为空。
- * autoLocate 为 true 时挂载即定位（在拍页默认开启）。
+ * v-model 绑定 { lat, lng, address }，三项都可以为空——不做任何必填校验。
+ * 默认挂载即定位（autoLocate 默认 true），拿到坐标后自动解析地址并填上第一个候选。
  */
 import { onMounted, ref } from 'vue'
 import { api } from '../lib/api.js'
 import { getCurrentPosition, type AddressCandidate, type LocationValue } from '../lib/geo.js'
 
 const model = defineModel<LocationValue>({ required: true })
-const props = withDefaults(defineProps<{ autoLocate?: boolean }>(), { autoLocate: false })
+const props = withDefaults(defineProps<{ autoLocate?: boolean }>(), { autoLocate: true })
 
 const locating = ref(false)
 const accuracy = ref<number | null>(null)
