@@ -259,3 +259,21 @@ describe('buildRollCode', () => {
     }
   })
 })
+
+describe('有效期格式', () => {
+  it('接受年月 6 位', async () => {
+    const { expirySchema } = await import('@film-vault/shared')
+    expect(expirySchema.parse('202808')).toBe('202808')
+    expect(expirySchema.parse(' 202801 ')).toBe('202801')
+  })
+
+  it('拒绝非法月份与年份', async () => {
+    const { expirySchema } = await import('@film-vault/shared')
+    expect(expirySchema.safeParse('202813').success).toBe(false)
+    expect(expirySchema.safeParse('202800').success).toBe(false)
+    expect(expirySchema.safeParse('189912').success).toBe(false)
+    expect(expirySchema.safeParse('2028008').success).toBe(false)
+    expect(expirySchema.safeParse('20-08').success).toBe(false)
+    expect(expirySchema.safeParse('').success).toBe(false)
+  })
+})

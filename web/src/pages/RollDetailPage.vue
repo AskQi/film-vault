@@ -165,6 +165,20 @@ async function saveDev() {
   }
 }
 
+/** 202808 → 2028-08 */
+function fmtExpiry(v: string): string {
+  return /^\d{6}$/.test(v) ? `${v.slice(0, 4)}-${v.slice(4)}` : v
+}
+
+/** 剩余不足 6 个月标红提示 */
+function isExpiringSoon(v: string): boolean {
+  if (!/^\d{6}$/.test(v)) return false
+  const d = new Date()
+  const nowMonths = d.getFullYear() * 12 + d.getMonth() + 1
+  const expMonths = Number(v.slice(0, 4)) * 12 + Number(v.slice(4))
+  return expMonths - nowMonths <= 6
+}
+
 function fmt(iso: string | null): string {
   if (!iso) return '—'
   const d = new Date(iso)
@@ -193,6 +207,13 @@ onMounted(load)
         <div class="mt-3 flex flex-wrap justify-center gap-2 text-xs">
           <span class="rounded-full bg-slate-800 px-2.5 py-1">ISO {{ roll.iso }}</span>
           <span class="rounded-full bg-slate-800 px-2.5 py-1">{{ roll.format }}</span>
+          <span
+            v-if="roll.expiryDate"
+            class="rounded-full px-2.5 py-1"
+            :class="isExpiringSoon(roll.expiryDate) ? 'bg-red-900/60 text-red-300' : 'bg-slate-800'"
+          >
+            有效期 {{ fmtExpiry(roll.expiryDate) }}
+          </span>
           <span class="rounded-full bg-slate-800 px-2.5 py-1">
             {{ ROLL_STATUS_LABEL[roll.status as RollStatus] ?? roll.status }}
           </span>

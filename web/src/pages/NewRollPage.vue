@@ -14,12 +14,16 @@ const mode = ref<'single' | 'batch'>('single')
 const serial = ref('')
 const count = ref(3)
 const framesTotal = ref(36)
+/** 有效期：年月 6 位，如 202808。建档页必填 */
+const expiryDate = ref('')
 const error = ref<string | null>(null)
 /** 批量建档撞号时服务端返回的重复编号 */
 const conflicts = ref<{ serialTxt?: string; code: string }[]>([])
 const submitting = ref(false)
 const created = ref<{ code: string; id: number }[]>([])
 const scannerOpen = ref(false)
+/** 扫码目标：编号或有效期。扫有效期时点有效期旁的按钮 */
+const scanTarget = ref<'code' | 'expiry'>('code')
 /** 建档成功后的编号结果面板 */
 const showResult = ref(false)
 const copied = ref(false)
@@ -90,6 +94,18 @@ async function handleScanned(raw: string) {
 
   const text = raw.trim()
 
+  // 扫码时选了「有效期」目标：任何扫到的内容都按年月解析
+  if (scanTarget.value === 'expiry') {
+    const parsed = parseExpiry(text)
+    if (parsed) {
+      expiryDate.value = parsed
+      scanTarget.value = 'code'
+      return
+    }
+    error.value = `从「${text}」里没认出有效期，可手动填写，格式如 202808`
+    return
+  }
+
   if (/^[A-Za-z0-9]{7}$/.test(text)) {
     const codePrefix = text.slice(0, 4)
     const hit = stocks.value.find((s) => s.prefix === codePrefix)
@@ -120,6 +136,43 @@ async function handleScanned(raw: string) {
   } catch (e) {
     error.value = (e as Error).message
   }
+}
+
+/**
+ * 从扫码结果里解析有效期（年月）。
+ *
+ * 包装上的日期条码格式不统一，常见的几种都试一遍：
+ *   202808 / 082028 / 2028-08 / 28-08 / 2028/08
+ * 只取年月，不猜日。
+ */
+function parseExpiry(raw: string): string | null {
+  const s = raw.trim()
+  const valid = (y: number, m: number) =>
+    y >= 1900 && y <= 2100 && m >= 1 && m <= 12 ? `${y}${String(m).padStart(2, '0')}` : null
+
+  // 本身就是 6 位年月
+  let m = /^(\d{4})(\d{2})$/.exec(s)
+  if (m) return valid(Number(m[1]), Number(m[2]))
+
+  // 带分隔符：2028-08 / 2028/08 / 2028.08
+  m = /^(\d{4})[-/.](\d{1,2})$/.exec(s)
+  if (m) return valid(Number(m[1]), Number(m[2]))
+
+  // 月年倒序：08/2028
+  m = /^(\d{1,2})[-/.](\d{4})$/.exec(s)
+  if (m) return valid(Number(m[2]), Number(m[1]))
+
+  // 常见条码里的紧凑写法：MMYY（如 0828）或 YYMM（如 2808）
+  m = /^(\d{2})(\d{2})$/.exec(s)
+  if (m) {
+    const a = Number(m[1])
+    const b = Number(m[2])
+    // MMYY：月份在前，年份补 2000
+    if (a >= 1 && a <= 12) return valid(2000 + b, a)
+    // YYMM：年在前
+    if (b >= 1 && b <= 12) return valid(2000 + a, b)
+  }
+  return null
 }
 
 function headIndexLocal(ch: string): number {
@@ -197,6 +250,12 @@ async function submit() {
     error.value = '请先选择型号'
     return
   }
+  // 有效期必填（首页扫码就地建档不受此限制）
+  if (!/^\d{6}$/.test(expiryDate.value) || Number(expiryDate.value.slice(4)) < 1 || Number(expiryDate.value.slice(4)) > 12) {
+    error.value = '请填写有效期，格式为年月 6 位数字，如 202808'
+    return
+  }
+
   submitting.value = true
   error.value = null
   conflicts.value = []
@@ -206,6 +265,7 @@ async function submit() {
       const roll = await api.post<{ id: number; code: string }>('/rolls', {
         code,
         framesTotal: framesTotal.value,
+        expiryDate: expiryDate.value,
       })
       created.value = [roll]
     } else {
@@ -219,6 +279,7 @@ async function submit() {
           startSeq,
           count: count.value,
           framesTotal: framesTotal.value,
+          expiryDate: expiryDate.value,
           onConflict: 'strict',
           box: { label: new Date().toISOString().slice(0, 10) },
         },
@@ -378,7 +439,7 @@ onMounted(loadStocks)
             <button
               class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-800 text-xl active:bg-slate-700"
               :title="mode === 'batch' ? '扫第一张，作为起始编号' : '扫编号或包装条码'"
-              @click="scannerOpen = true"
+              @click="scanTarget = 'code'; scannerOpen = true"
             >
               ⌗
             </button>
@@ -428,6 +489,36 @@ onMounted(loadStocks)
               {{ code }}
             </span>
           </div>
+        </div>
+
+        <div>
+          <label class="mb-1.5 block text-xs text-slate-400">
+            有效期 <span class="text-amber-500">*</span>
+          </label>
+          <div class="flex items-center gap-2">
+            <input
+              v-model="expiryDate"
+              maxlength="6"
+              inputmode="numeric"
+              placeholder="202808"
+              class="code-text w-32 rounded-xl border bg-slate-900 px-3 py-3 text-center text-lg outline-none focus:border-amber-500"
+              :class="expiryDate ? 'border-slate-800 text-slate-100' : 'border-amber-600/40 text-slate-100'"
+            />
+            <button
+              class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-800 text-xl active:bg-slate-700"
+              title="扫包装上的有效期"
+              @click="scanTarget = 'expiry'; scannerOpen = true"
+            >
+              ⌗
+            </button>
+            <!-- 有效期为 202808 这种 6 位；长度不对时不猜，直接不显示 -->
+            <span v-if="expiryDate.length === 6 && /^\d{6}$/.test(expiryDate)" class="text-xs text-slate-500">
+              {{ expiryDate.slice(0, 4) }} 年 {{ Number(expiryDate.slice(4)) }} 月
+            </span>
+          </div>
+          <p class="mt-1.5 text-xs text-slate-500">
+            包装上印的年月，如 2028 年 08 月 → 填 202808。可扫码自动识别
+          </p>
         </div>
 
         <div>

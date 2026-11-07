@@ -32,6 +32,23 @@ export const serialSchema = z
   .regex(/^[0-9A-Za-z]\d{2}$/, '序号格式不正确（示例 001 / A07 / a12）')
   .refine((v) => v !== '000', '000 为保留序号')
 
+/**
+ * 胶卷有效期：年月，6 位数字，如 202808。
+ * 只到月——包装上印的就是「2028-08」这种粒度，不精确到日。
+ */
+export const expirySchema = z
+  .string()
+  .trim()
+  .regex(/^\d{6}$/, '有效期格式应为年月 6 位数字，如 202808')
+  .refine((v) => {
+    const month = Number(v.slice(4))
+    return month >= 1 && month <= 12
+  }, '月份必须是 01-12')
+  .refine((v) => {
+    const year = Number(v.slice(0, 4))
+    return year >= 1900 && year <= 2100
+  }, '年份应在 1900-2100 之间')
+
 /** 序号对应的整数 seq（1..6199） */
 export const seqSchema = z.number().int().min(1).max(6199)
 
@@ -108,6 +125,8 @@ export const batchRollInputSchema = z.object({
   startSeq: seqSchema,
   count: z.number().int().min(1).max(50),
   framesTotal: z.number().int().min(1).max(200),
+  /** 有效期（年月）。批量建档必填 */
+  expiryDate: expirySchema,
   /**
    * 冲突策略：
    *   strict — 起始序号往后的连续 N 个号里只要有一个已存在，就报错并列出重复项（默认）

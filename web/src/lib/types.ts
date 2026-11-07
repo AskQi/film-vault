@@ -81,6 +81,8 @@ export interface ProgressEntry {
 
 export interface RollDetail extends RollListItem {
   stock: Stock
+  /** 有效期：年月 6 位，如 202808 */
+  expiryDate: string | null
   remaining: number
   progress: ProgressEntry[]
   notes: string | null

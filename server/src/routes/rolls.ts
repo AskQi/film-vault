@@ -5,6 +5,7 @@ import { z } from 'zod'
 import {
   ROLL_STATUSES,
   batchRollInputSchema,
+  expirySchema,
   rollCodeSchema,
   parseRollCode,
   serialFromSeq,
@@ -17,6 +18,11 @@ import { findStockByPrefix, recordPending } from '../lib/stocks.js'
 const createRollSchema = z.object({
   code: rollCodeSchema,
   framesTotal: z.number().int().min(1).max(200).optional(),
+  /**
+   * 有效期（年月，如 202808）。
+   * 建档页必填，由前端保证；首页扫码就地建档允许留空，所以接口层保持可选。
+   */
+  expiryDate: expirySchema.nullable().optional(),
   boxId: z.number().int().positive().nullable().optional(),
   notes: z.string().max(2000).nullable().optional(),
   purchasedAt: z.string().nullable().optional(),
@@ -142,6 +148,7 @@ export const rollRoutes: FastifyPluginAsync = async (app) => {
           framesTotal,
           status: 'unopened',
           notes: input.notes ?? null,
+          expiryDate: input.expiryDate ?? null,
           createdAt: now,
           updatedAt: now,
         })
@@ -222,6 +229,8 @@ export const rollRoutes: FastifyPluginAsync = async (app) => {
               boxId,
               framesTotal: input.framesTotal,
               status: 'unopened',
+              // 批量建档的有效期必填（schema 已约束）
+              expiryDate: input.expiryDate,
               createdAt: now,
               updatedAt: now,
             })
