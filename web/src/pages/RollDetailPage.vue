@@ -9,6 +9,7 @@ import { api } from '../lib/api.js'
 import type { RollDetail, ProgressEntry, FrameNote, Development, TimelineEntry } from '../lib/types.js'
 import { ROLL_STATUS_LABEL, type RollStatus } from '@film-vault/shared/client'
 import RecordSheet from '../components/RecordSheet.vue'
+import ScanSheet from '../components/ScanSheet.vue'
 
 const route = useRoute()
 const roll = ref<RollDetail | null>(null)
@@ -165,6 +166,76 @@ async function saveDev() {
   }
 }
 
+// 有效期编辑
+const editingExpiry = ref(false)
+const expiryDraft = ref('')
+const savingExpiry = ref(false)
+/** 扫码目标：有效期 */
+const expiryScanOpen = ref(false)
+
+function startEditExpiry() {
+  expiryDraft.value = roll.value?.expiryDate ?? ''
+  editingExpiry.value = true
+  error.value = null
+}
+
+async function saveExpiry() {
+  if (!roll.value) return
+  const v = expiryDraft.value.trim()
+  if (v && (!/^\d{6}$/.test(v) || Number(v.slice(4)) < 1 || Number(v.slice(4)) > 12)) {
+    error.value = '有效期格式应为年月 6 位数字，如 202808'
+    return
+  }
+  savingExpiry.value = true
+  error.value = null
+  try {
+    await api.patch(`/rolls/${roll.value.id}`, { expiryDate: v || null })
+    editingExpiry.value = false
+    await load()
+  } catch (e) {
+    error.value = (e as Error).message
+  } finally {
+    savingExpiry.value = false
+  }
+}
+
+/** 扫到有效期：填进草稿，不直接提交，留给用户确认 */
+function onExpiryScanned(raw: string) {
+  expiryScanOpen.value = false
+  const parsed = parseExpiryText(raw)
+  if (parsed) {
+    expiryDraft.value = parsed
+    editingExpiry.value = true
+  } else {
+    error.value = `从「${raw}」里没认出有效期，可手动填写，格式如 202808`
+  }
+}
+
+/**
+ * 从扫码内容里解析年月。与建档页保持同一套规则：
+ * 202808 / 2028-08 / 08/2028 / 0828 / 2808
+ */
+function parseExpiryText(raw: string): string | null {
+  const t = raw.trim()
+  const valid = (y: number, m: number) =>
+    y >= 1900 && y <= 2100 && m >= 1 && m <= 12 ? `${y}${String(m).padStart(2, '0')}` : null
+
+  let m = /^(\d{4})(\d{2})$/.exec(t)
+  if (m) return valid(Number(m[1]), Number(m[2]))
+  m = /^(\d{4})[-/.](\d{1,2})$/.exec(t)
+  if (m) return valid(Number(m[1]), Number(m[2]))
+  m = /^(\d{1,2})[-/.](\d{4})$/.exec(t)
+  if (m) return valid(Number(m[2]), Number(m[1]))
+  m = /^(\d{2})(\d{2})$/.exec(t)
+  if (m) {
+    const a = Number(m[1])
+    const b = Number(m[2])
+    if (a >= 1 && a <= 12) return valid(2000 + b, a)
+    if (b >= 1 && b <= 12) return valid(2000 + a, b)
+  }
+  return null
+}
+
 /** 202808 → 2028-08 */
 function fmtExpiry(v: string): string {
   return /^\d{6}$/.test(v) ? `${v.slice(0, 4)}-${v.slice(4)}` : v
@@ -207,18 +278,72 @@ onMounted(load)
         <div class="mt-3 flex flex-wrap justify-center gap-2 text-xs">
           <span class="rounded-full bg-slate-800 px-2.5 py-1">ISO {{ roll.iso }}</span>
           <span class="rounded-full bg-slate-800 px-2.5 py-1">{{ roll.format }}</span>
-          <span
+          <button
             v-if="roll.expiryDate"
             class="rounded-full px-2.5 py-1"
             :class="isExpiringSoon(roll.expiryDate) ? 'bg-red-900/60 text-red-300' : 'bg-slate-800'"
+            title="点一下修改有效期"
+            @click="startEditExpiry"
           >
             有效期 {{ fmtExpiry(roll.expiryDate) }}
-          </span>
+          </button>
+          <button
+            v-else
+            class="rounded-full border border-dashed border-slate-700 px-2.5 py-1 text-slate-500"
+            title="添加有效期"
+            @click="startEditExpiry"
+          >
+            ＋ 有效期
+          </button>
           <span class="rounded-full bg-slate-800 px-2.5 py-1">
             {{ ROLL_STATUS_LABEL[roll.status as RollStatus] ?? roll.status }}
           </span>
         </div>
       </header>
+
+      <!-- 修改有效期 -->
+      <section v-if="editingExpiry" class="mb-6 rounded-2xl border border-slate-800 bg-slate-900 p-4">
+        <label class="mb-1.5 block text-xs text-slate-400">有效期（年月 6 位）</label>
+        <div class="flex items-center gap-2">
+          <input
+            v-model="expiryDraft"
+            maxlength="6"
+            inputmode="numeric"
+            placeholder="202808"
+            class="code-text w-32 rounded-xl border border-slate-800 bg-slate-950 px-3 py-3 text-center text-lg outline-none focus:border-amber-500"
+          />
+          <button
+            class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-800 text-xl active:bg-slate-700"
+            title="扫包装上的有效期"
+            @click="expiryScanOpen = true"
+          >
+            ⌗
+          </button>
+          <span v-if="expiryDraft.length === 6 && /^\d{6}$/.test(expiryDraft)" class="text-xs text-slate-500">
+            {{ expiryDraft.slice(0, 4) }} 年 {{ Number(expiryDraft.slice(4)) }} 月
+          </span>
+        </div>
+        <div class="mt-3 flex gap-2">
+          <button class="rounded-xl bg-slate-800 px-4 py-2.5 text-sm" @click="editingExpiry = false">
+            取消
+          </button>
+          <button
+            class="flex-1 rounded-xl bg-amber-500 py-2.5 text-sm font-medium text-slate-950 disabled:opacity-40"
+            :disabled="savingExpiry"
+            @click="saveExpiry"
+          >
+            {{ savingExpiry ? '保存中…' : '保存' }}
+          </button>
+          <button
+            v-if="roll.expiryDate"
+            class="rounded-xl px-3 py-2.5 text-sm text-red-400"
+            :disabled="savingExpiry"
+            @click="expiryDraft = ''; saveExpiry()"
+          >
+            清除
+          </button>
+        </div>
+      </section>
 
       <!-- 进度 -->
       <section class="mb-6 rounded-3xl border border-slate-800 bg-slate-900 p-5 text-center">
@@ -480,6 +605,7 @@ onMounted(load)
       </section>
 
       <RecordSheet :open="sheetOpen" :roll="roll" @close="sheetOpen = false" @saved="load" />
+      <ScanSheet :open="expiryScanOpen" @close="expiryScanOpen = false" @scanned="onExpiryScanned" />
     </template>
   </div>
 </template>

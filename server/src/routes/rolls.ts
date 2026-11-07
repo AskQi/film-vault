@@ -301,7 +301,8 @@ export const rollRoutes: FastifyPluginAsync = async (app) => {
         ei: z.number().int().min(1).nullable().optional(),
         pushPull: z.number().int().min(-3).max(3).optional(),
         notes: z.string().max(2000).nullable().optional(),
-        expiryDate: z.string().nullable().optional(),
+        /** 有效期：年月 6 位。允许清空为 null */
+        expiryDate: expirySchema.nullable().optional(),
         loadedAt: z.string().nullable().optional(),
         finishedAt: z.string().nullable().optional(),
       })
