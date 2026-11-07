@@ -1,9 +1,10 @@
 /** 进度快照：新增 / 编辑 / 删除 / 按时间线查询 */
 import type { FastifyPluginAsync } from 'fastify'
-import { and, asc, desc, eq } from 'drizzle-orm'
+import { and, desc, eq, isNull } from 'drizzle-orm'
 import { z } from 'zod'
-import { progressInputSchema } from '@film-vault/shared'
+import { parseRollCode, progressInputSchema } from '@film-vault/shared'
 import { roll, rollProgress } from '../db/schema/index.js'
+import { ProgressError, recordProgress } from '../lib/progress.js'
 
 export const progressRoutes: FastifyPluginAsync = async (app) => {
   // 某卷的进度时间线
@@ -31,42 +32,46 @@ export const progressRoutes: FastifyPluginAsync = async (app) => {
     const input = progressInputSchema.parse(req.body)
     const db = app.db
 
-    const r = db.select().from(roll).where(eq(roll.id, id)).get()
+    const r = db.select().from(roll).where(and(eq(roll.id, id), isNull(roll.deletedAt))).get()
     if (!r) return reply.code(404).send({ error: '胶卷不存在' })
 
-    if (input.reachedFrame > r.framesTotal) {
-      return reply.code(400).send({
-        error: `拍到了第 ${input.reachedFrame} 张，超过该卷总张数 ${r.framesTotal}`,
-      })
+    try {
+      return reply.code(201).send(recordProgress(db, r, input))
+    } catch (e) {
+      if (e instanceof ProgressError) return reply.code(e.statusCode).send({ error: e.message })
+      throw e
+    }
+  })
+
+  /**
+   * 快速记录：按 7 位编号定位胶卷，一步完成装机或记张数。
+   * 在拍页的主入口——不需要先进详情页。
+   */
+  app.post('/quick-record', async (req, reply) => {
+    const body = z.object({ code: z.string().min(1) }).passthrough().parse(req.body)
+    const input = progressInputSchema.parse(req.body)
+    const db = app.db
+
+    const parsed = parseRollCode(body.code)
+    if (!parsed.ok) return reply.code(400).send({ error: parsed.detail })
+
+    const r = db
+      .select()
+      .from(roll)
+      .where(and(eq(roll.code, parsed.code), isNull(roll.deletedAt)))
+      .get()
+    if (!r) {
+      return reply.code(404).send({ error: `${parsed.code} 尚未建档`, code: parsed.code, notFound: true })
     }
 
-    const now = new Date().toISOString()
-    const created = db.transaction((tx) => {
-      const p = tx
-        .insert(rollProgress)
-        .values({
-          rollId: id,
-          reachedFrame: input.reachedFrame,
-          happenedAt: input.happenedAt ?? now,
-          cameraId: input.cameraId ?? null,
-          lensId: input.lensId ?? null,
-          note: input.note ?? null,
-          createdAt: now,
-        })
-        .returning()
-        .get()
-
-      // 状态自动推进：有进度且未拍完 → partial
-      if (r.status === 'unopened' || r.status === 'loaded') {
-        tx.update(roll).set({ status: 'partial', updatedAt: now }).where(eq(roll.id, id)).run()
-      } else {
-        tx.update(roll).set({ updatedAt: now }).where(eq(roll.id, id)).run()
-      }
-
-      return p
-    })
-
-    return reply.code(201).send(created)
+    try {
+      const p = recordProgress(db, r, input)
+      const updated = db.select().from(roll).where(eq(roll.id, r.id)).get()
+      return reply.code(201).send({ progress: p, roll: updated })
+    } catch (e) {
+      if (e instanceof ProgressError) return reply.code(e.statusCode).send({ error: e.message })
+      throw e
+    }
   })
 
   // 编辑
@@ -79,6 +84,9 @@ export const progressRoutes: FastifyPluginAsync = async (app) => {
         cameraId: z.number().int().positive().nullable().optional(),
         lensId: z.number().int().positive().nullable().optional(),
         note: z.string().max(500).nullable().optional(),
+        lat: z.number().min(-90).max(90).nullable().optional(),
+        lng: z.number().min(-180).max(180).nullable().optional(),
+        address: z.string().trim().max(200).nullable().optional(),
       })
       .parse(req.body)
 

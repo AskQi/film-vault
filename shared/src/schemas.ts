@@ -113,13 +113,20 @@ export const stockPersonalSchema = z.object({
 })
 
 /** 记一笔（进度快照） */
-export const progressInputSchema = z.object({
-  reachedFrame: z.number().int().min(0),
-  happenedAt: z.string().datetime({ offset: true }).or(z.string().min(1)).optional(),
-  cameraId: z.number().int().positive().nullable().optional(),
-  lensId: z.number().int().positive().nullable().optional(),
-  note: z.string().max(500).nullable().optional(),
-})
+export const progressInputSchema = z
+  .object({
+    /** progress=拍到第几张，load=装机 */
+    event: z.enum(['progress', 'load']).default('progress'),
+    reachedFrame: z.number().int().min(0),
+    happenedAt: z.string().datetime({ offset: true }).or(z.string().min(1)).optional(),
+    cameraId: z.number().int().positive().nullable().optional(),
+    lensId: z.number().int().positive().nullable().optional(),
+    note: z.string().max(500).nullable().optional(),
+    lat: z.number().min(-90).max(90).nullable().optional(),
+    lng: z.number().min(-180).max(180).nullable().optional(),
+    address: z.string().trim().max(200).nullable().optional(),
+  })
+  .refine((v) => (v.lat == null) === (v.lng == null), '经纬度必须同时提供')
 
 /** 单张注解 */
 export const frameNoteInputSchema = z.object({

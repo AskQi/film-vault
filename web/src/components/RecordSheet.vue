@@ -8,6 +8,8 @@
 import { computed, ref, watch } from 'vue'
 import { api } from '../lib/api.js'
 import type { RollListItem } from '../lib/types.js'
+import type { LocationValue } from '../lib/geo.js'
+import LocationField from './LocationField.vue'
 
 const props = defineProps<{ open: boolean; roll: RollListItem | null }>()
 const emit = defineEmits<{ close: []; saved: [] }>()
@@ -16,6 +18,7 @@ const target = ref<number>(0)
 const backfill = ref(false)
 const happenedAt = ref('')
 const note = ref('')
+const location = ref<LocationValue>({ lat: null, lng: null, address: '' })
 const showMore = ref(false)
 const cameraId = ref<number | null>(null)
 const lensId = ref<number | null>(null)
@@ -40,6 +43,7 @@ watch(
     if (!isOpen) return
     error.value = null
     note.value = ''
+    location.value = { lat: null, lng: null, address: '' }
     backfill.value = false
     showMore.value = false
     happenedAt.value = nowLocal()
@@ -73,6 +77,9 @@ async function save() {
       // 只有回填时才显式传时间，否则让服务端用当前时间
       happenedAt: backfill.value && happenedAt.value ? new Date(happenedAt.value).toISOString() : undefined,
       note: note.value.trim() || null,
+      lat: location.value.lat,
+      lng: location.value.lng,
+      address: location.value.address.trim() || null,
       cameraId: cameraId.value,
       lensId: lensId.value,
     })
@@ -155,8 +162,9 @@ async function save() {
 
         <!-- 更多：机身 / 镜头 -->
         <button class="mb-2 text-xs text-slate-500" @click="showMore = !showMore">
-          {{ showMore ? '收起' : '更多（机身 / 镜头）' }}
+          {{ showMore ? '收起' : '更多（地点 / 机身 / 镜头）' }}
         </button>
+        <LocationField v-if="showMore" v-model="location" class="mb-3" />
         <div v-if="showMore" class="mb-3 grid grid-cols-2 gap-2">
           <select
             v-model.number="cameraId"

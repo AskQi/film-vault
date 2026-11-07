@@ -65,6 +65,10 @@ export interface PrefixMapResponse {
 export interface ProgressEntry {
   id: number
   rollId: number
+  event: 'progress' | 'load'
+  lat: number | null
+  lng: number | null
+  address: string | null
   reachedFrame: number
   happenedAt: string
   cameraId: number | null

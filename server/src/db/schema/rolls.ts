@@ -74,7 +74,15 @@ export const roll = sqliteTable(
   ],
 )
 
-/** 进度快照（核心表）：记录「拍到了第几张」 */
+/**
+ * 进度快照（核心表）：记录「拍到了第几张」。
+ *
+ * event 区分两类时间点：
+ *   progress — 拍到第几张（默认）
+ *   load     — 装机。reached_frame 记装机时的张数（通常 0），照常参与「当前进度」的 MAX，
+ *              因为它不会大于之后的拍摄记录，结果不受影响
+ * 装机也落在这张表里，是为了让它和拍摄进度一样带时间、地点，并出现在同一条时间线上。
+ */
 export const rollProgress = sqliteTable(
   'roll_progress',
   {
@@ -82,12 +90,19 @@ export const rollProgress = sqliteTable(
     rollId: integer('roll_id')
       .notNull()
       .references(() => roll.id, { onDelete: 'cascade' }),
+    /** progress / load */
+    event: text('event').notNull().default('progress'),
     /** 拍到了第几张 */
     reachedFrame: integer('reached_frame').notNull(),
     /** 什么时候拍的（可回填过去时间） */
     happenedAt: text('happened_at').notNull(),
     cameraId: integer('camera_id').references(() => camera.id),
     lensId: integer('lens_id').references(() => lens.id),
+    /** 定位：WGS-84 原始坐标（浏览器 Geolocation 给出的就是 WGS-84） */
+    lat: real('lat'),
+    lng: real('lng'),
+    /** 详细地址：可来自逆地理编码选择，也可手动编辑 */
+    address: text('address'),
     note: text('note'),
     createdAt: text('created_at').notNull(),
   },

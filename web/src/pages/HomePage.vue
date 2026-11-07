@@ -1,13 +1,13 @@
 <script setup lang="ts">
 /**
- * 首页：在拍的胶卷。
- * M3 之前这里是空态引导；数据就绪后展示进度卡片。
+ * 首页「在拍」：顶部快速录入（输入/扫码编号 → 装机或记张数），下方是在拍卷列表。
  */
 import { onMounted, ref } from 'vue'
 import { api } from '../lib/api.js'
 import type { RollListItem } from '../lib/types.js'
 import RollCard from '../components/RollCard.vue'
 import RecordSheet from '../components/RecordSheet.vue'
+import QuickRecord from '../components/QuickRecord.vue'
 
 const rolls = ref<RollListItem[]>([])
 const loading = ref(true)
@@ -35,8 +35,14 @@ onMounted(load)
   <div class="mx-auto max-w-3xl px-4 pt-6">
     <header class="mb-6">
       <h1 class="text-2xl font-semibold">在拍</h1>
-      <p class="mt-1 text-sm text-slate-400">记录拍到第几张，两秒完成</p>
+      <p class="mt-1 text-sm text-slate-400">输入或扫码编号，装机或记录拍到第几张</p>
     </header>
+
+    <QuickRecord class="mb-6" @saved="load" />
+
+    <h2 v-if="!loading && rolls.length" class="mb-3 text-sm font-medium text-slate-400">
+      在拍 {{ rolls.length }} 卷
+    </h2>
 
     <div v-if="loading" class="py-16 text-center text-slate-500">加载中…</div>
 
@@ -48,12 +54,8 @@ onMounted(load)
     <div v-else-if="rolls.length === 0" class="rounded-3xl border border-dashed border-slate-800 p-10 text-center">
       <div class="mb-3 text-4xl">◎</div>
       <p class="text-slate-300">还没有在拍的胶卷</p>
-      <RouterLink
-        to="/new"
-        class="mt-6 inline-block rounded-xl bg-amber-500 px-6 py-3 font-medium text-slate-950"
-      >
-        建档一卷
-      </RouterLink>
+      <p class="mt-1 text-xs text-slate-500">在上面输入编号并「装机」，就会出现在这里</p>
+      <RouterLink to="/new" class="mt-4 inline-block text-sm text-amber-500">还没建档？去建档 ›</RouterLink>
     </div>
 
     <div v-else class="space-y-3">

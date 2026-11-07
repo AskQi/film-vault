@@ -8,6 +8,7 @@ import Fastify, { type FastifyInstance } from 'fastify'
 import cookie from '@fastify/cookie'
 import fastifyStatic from '@fastify/static'
 import { existsSync } from 'node:fs'
+import { ZodError } from 'zod'
 
 import { config } from './config.js'
 import { isApiPath } from './lib/paths.js'
@@ -23,6 +24,7 @@ import { statsRoutes } from './routes/stats.js'
 import { frameNoteRoutes } from './routes/frame-notes.js'
 import { developmentRoutes } from './routes/developments.js'
 import { backupRoutes } from './routes/backup.js'
+import { geoRoutes } from './routes/geo.js'
 
 /** 不需要登录的路径（/api 下） */
 const PUBLIC_API_PATHS = new Set(['/api/auth/login', '/api/auth/session', '/api/health'])
@@ -59,6 +61,20 @@ export async function buildApp({ db, logger = false }: BuildAppOptions): Promise
     return reply.code(401).send({ error: '未登录' })
   })
 
+  // 统一错误处理。必须在注册路由之前设置：Fastify 的子插件在注册时继承父级处理器，
+  // 之后再设置只对根作用域生效，路由里抛的错会落到默认处理器。
+  app.setErrorHandler((err: Error & { statusCode?: number }, _req, reply) => {
+    // 路由里直接 schema.parse(req.body)，校验失败抛 ZodError：属于请求错误，回 400 并给出第一条原因
+    if (err instanceof ZodError) {
+      const first = err.issues[0]
+      const where = first?.path.length ? `${first.path.join('.')}：` : ''
+      return reply.code(400).send({ error: `${where}${first?.message ?? '参数不合法'}` })
+    }
+    const status = err.statusCode ?? 500
+    if (status >= 500) app.log.error(err)
+    return reply.code(status).send({ error: err.message })
+  })
+
   app.get('/api/health', async () => ({ ok: true }))
 
   await app.register(authRoutes, { prefix: '/api/auth' })
@@ -71,13 +87,7 @@ export async function buildApp({ db, logger = false }: BuildAppOptions): Promise
   await app.register(frameNoteRoutes, { prefix: '/api' })
   await app.register(developmentRoutes, { prefix: '/api' })
   await app.register(backupRoutes, { prefix: '/api' })
-
-  // 统一错误处理
-  app.setErrorHandler((err: Error & { statusCode?: number }, _req, reply) => {
-    const status = err.statusCode ?? 500
-    if (status >= 500) app.log.error(err)
-    return reply.code(status).send({ error: err.message })
-  })
+  await app.register(geoRoutes, { prefix: '/api' })
 
   // 生产模式托管前端静态文件（前端路由用 history 模式，未知路径回落到 index.html）
   if (existsSync(config.webDist)) {

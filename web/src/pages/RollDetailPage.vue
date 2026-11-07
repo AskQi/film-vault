@@ -319,7 +319,8 @@ onMounted(load)
             <!-- 进度快照 -->
             <div v-if="entry.kind === 'progress'" class="rounded-xl bg-slate-900 px-4 py-3">
               <div class="flex items-baseline justify-between gap-2">
-                <span class="text-lg font-semibold tabular-nums">
+                <span v-if="entry.data.event === 'load'" class="text-lg font-semibold">装机</span>
+                <span v-else class="text-lg font-semibold tabular-nums">
                   第 {{ entry.data.reachedFrame }} 张
                 </span>
                 <button class="text-xs text-slate-600 hover:text-red-400" @click="removeProgress(entry.data)">
@@ -327,6 +328,7 @@ onMounted(load)
                 </button>
               </div>
               <div class="mt-1 text-xs text-slate-500">{{ fmt(entry.at) }}</div>
+              <p v-if="entry.data.address" class="mt-1 text-xs text-slate-400">📍 {{ entry.data.address }}</p>
               <p v-if="entry.data.note" class="mt-1 text-sm text-slate-300">{{ entry.data.note }}</p>
             </div>
 

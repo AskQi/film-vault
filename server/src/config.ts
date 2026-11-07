@@ -58,6 +58,9 @@ export const config = {
   /** 单用户 PIN。生产环境必须显式设置。 */
   pin: env('PIN') ?? '1234',
 
+  /** 高德 Web 服务 key，用于逆地理编码。未配置时地址需手动填写，其余功能不受影响。 */
+  amapKey: env('AMAP_KEY'),
+
   /** 会话 Cookie 名与有效期 */
   cookieName: 'fv_session',
   sessionMaxAgeSec: 60 * 60 * 24 * 30,

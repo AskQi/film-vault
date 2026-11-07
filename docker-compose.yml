@@ -8,6 +8,8 @@ services:
       PIN: ${PIN:?请在 .env 中设置 PIN}
       # 固定会话签名密钥，否则每次重启都会让所有设备掉登录
       SESSION_SECRET: ${SESSION_SECRET:?请在 .env 中设置 SESSION_SECRET}
+      # 可选：GPS 转地址。不设置时地址手动填写
+      AMAP_KEY: ${AMAP_KEY:-}
       DATA_DIR: /app/storage
       TZ: Asia/Shanghai
     volumes:
