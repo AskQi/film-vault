@@ -7,7 +7,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { api } from '../lib/api.js'
 import type { RollDetail, ProgressEntry, FrameNote, Development, TimelineEntry } from '../lib/types.js'
-import { ROLL_STATUS_LABEL, type RollStatus } from '@film-vault/shared'
+import { ROLL_STATUS_LABEL, type RollStatus } from '@film-vault/shared/client'
 import RecordSheet from '../components/RecordSheet.vue'
 
 const route = useRoute()

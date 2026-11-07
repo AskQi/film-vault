@@ -4,7 +4,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { api } from '../lib/api.js'
 import type { Stock, StockPrefix, RollListItem } from '../lib/types.js'
-import { COLOR_TYPE_LABEL, STOCK_STATUS_LABEL, type ColorType } from '@film-vault/shared'
+import { COLOR_TYPE_LABEL, STOCK_STATUS_LABEL, type ColorType } from '@film-vault/shared/client'
 
 interface Detail extends Stock {
   prefixes: StockPrefix[]

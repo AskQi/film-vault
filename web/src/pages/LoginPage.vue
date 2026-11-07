@@ -9,6 +9,8 @@ const router = useRouter()
 
 const pin = ref('')
 const submitting = ref(false)
+/** idle → 登录请求中（submitting）→ loading：已登录，正在加载首页 */
+const phase = ref<'idle' | 'loading'>('idle')
 
 async function submit() {
   if (!pin.value || submitting.value) return
@@ -17,9 +19,14 @@ async function submit() {
     const ok = await session.login(pin.value)
     if (ok) {
       const next = typeof route.query.next === 'string' ? route.query.next : '/'
+      // 登录已成功；跳转要先加载目标页的代码，弱网下可能要几秒，按钮文字随之改变
+      phase.value = 'loading'
       await router.push(next)
     }
+  } catch {
+    session.error = '页面加载失败，请刷新后重试'
   } finally {
+    phase.value = 'idle'
     submitting.value = false
   }
 }
@@ -54,7 +61,7 @@ async function submit() {
           :disabled="!pin || submitting"
           class="mt-6 w-full rounded-2xl bg-amber-500 py-4 text-lg font-medium text-slate-950 transition-opacity disabled:opacity-40"
         >
-          {{ submitting ? '登录中…' : '登录' }}
+          {{ phase === 'loading' ? '正在进入…' : submitting ? '登录中…' : '登录' }}
         </button>
       </form>
     </div>

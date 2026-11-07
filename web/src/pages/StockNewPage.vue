@@ -6,7 +6,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from '../lib/api.js'
-import { BRANDS, FORMATS, isoToCode } from '@film-vault/shared'
+import { BRANDS, FORMATS, isoToCode } from '@film-vault/shared/client'
 import type { PrefixMapResponse } from '../lib/types.js'
 
 const router = useRouter()

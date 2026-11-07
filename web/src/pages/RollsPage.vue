@@ -4,7 +4,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { api } from '../lib/api.js'
 import type { RollListItem } from '../lib/types.js'
 import RollCard from '../components/RollCard.vue'
-import { ROLL_STATUSES, ROLL_STATUS_LABEL } from '@film-vault/shared'
+import { ROLL_STATUSES, ROLL_STATUS_LABEL } from '@film-vault/shared/client'
 
 const rolls = ref<RollListItem[]>([])
 const loading = ref(true)

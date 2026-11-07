@@ -42,6 +42,17 @@ export default defineConfig({
     // 开发期经 nginx 用域名访问本机 dev server（HTTPS 下才能调摄像头与定位）。
     // Vite 默认拒绝非 localhost 的 Host，这里只放行这一个域名，不用 true 全开
     allowedHosts: ['film.ddns.sharepeople.cn'],
+    // 经 nginx 用域名访问时，浏览器看到的是 wss://域名:8443，不是 localhost:5173。
+    // 不告诉 Vite 的话，HMR 会回落去连手机自己的 localhost，连不上就反复轮询并整页刷新，
+    // 刷新若恰好打断登录后的跳转，按钮就会停在「登录中…」。
+    // 只在设置了 VITE_HMR_HOST 时生效，本机 localhost 开发不受影响。
+    hmr: process.env.VITE_HMR_HOST
+      ? {
+          host: process.env.VITE_HMR_HOST,
+          clientPort: Number(process.env.VITE_HMR_PORT ?? 443),
+          protocol: 'wss',
+        }
+      : undefined,
     // 开发时把 /api 转发到 Fastify，避免跨域与 Cookie 问题
     proxy: {
       '/api': {

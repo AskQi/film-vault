@@ -25,12 +25,21 @@ export const useSessionStore = defineStore('session', () => {
 
   async function login(pin: string) {
     error.value = null
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pin }),
-      credentials: 'same-origin',
-    })
+    let res: Response
+    try {
+      res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin }),
+        credentials: 'same-origin',
+        // 弱网下不要无限转圈：超时后提示重试
+        signal: AbortSignal.timeout(15000),
+      })
+    } catch (e) {
+      error.value =
+        (e as Error).name === 'TimeoutError' ? '登录超时，网络较慢，请重试' : '网络错误，请检查连接后重试'
+      return false
+    }
     if (!res.ok) {
       const data = (await res.json().catch(() => ({}))) as { error?: string }
       error.value = data.error ?? '登录失败'

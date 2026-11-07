@@ -3,7 +3,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { api } from '../lib/api.js'
 import type { ImportPreview, PrefixMapResponse, PendingStock, Stock } from '../lib/types.js'
-import { BRANDS } from '@film-vault/shared'
+import { BRANDS } from '@film-vault/shared/client'
 
 const stocks = ref<Stock[]>([])
 const prefixMap = ref<PrefixMapResponse | null>(null)

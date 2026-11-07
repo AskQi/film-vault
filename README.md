@@ -38,6 +38,17 @@ pnpm dev
 
 PIN 与会话密钥写在仓库根目录的 `.env`（参照 `.env.example`，该文件不进版本库）。未配置时 PIN 回退为 `1234`，生产环境禁止使用默认值。
 
+### 手机经域名调试
+
+开发期 nginx 把 `https://film.ddns.sharepeople.cn:8443` 转发到本机 `5173`。手机必须走 HTTPS 才能用扫码和定位：
+
+```bash
+pnpm --filter @film-vault/server dev          # 后端
+pnpm --filter @film-vault/web dev:domain      # 前端，HMR 指向域名
+```
+
+nginx 需要透传 WebSocket（`Upgrade` / `Connection` 头），否则改代码后手机端不会自动刷新，控制台报 HMR 连接失败。这不影响正常使用。
+
 ### 常用命令
 
 | 命令 | 说明 |
