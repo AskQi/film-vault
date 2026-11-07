@@ -128,12 +128,13 @@ export async function reverseGeocode(lat: number, lng: number): Promise<AddressC
     })
   }
 
-  // 附近 POI：高德已按距离排序，取前 8 个。
+  // 附近 POI：高德返回的顺序不保证按距离，这里自己排序后取前 8 个。
   // 地址前缀用 省+市+区（直辖市 city 为空数组，省即市，去重即可）
   const c = r.addressComponent
   const region = [...new Set([str(c?.province), str(c?.city), str(c?.district)].filter(Boolean))].join('')
   const seen = new Set(out.map((x) => x.label))
-  for (const p of (r.pois ?? []).slice(0, 8)) {
+  const pois = [...(r.pois ?? [])].sort((a, b) => (Number(a.distance) || 0) - (Number(b.distance) || 0))
+  for (const p of pois.slice(0, 8)) {
     if (!p.name) continue
     const label = `${region}${p.name}`
     if (seen.has(label)) continue

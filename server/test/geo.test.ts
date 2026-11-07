@@ -44,9 +44,10 @@ describe('reverseGeocode 解析高德返回', () => {
               township: '外滩街道',
               streetNumber: { street: '中山东一路', number: '18号' },
             },
+            // 故意乱序：高德实测返回的 POI 并不保证按距离排列
             pois: [
-              { name: '外滩', address: '中山东一路', distance: '35.2' },
               { name: '和平饭店', address: [], distance: '120' },
+              { name: '外滩', address: '中山东一路', distance: '35.2' },
               { name: '', address: [], distance: '5' },
             ],
           },

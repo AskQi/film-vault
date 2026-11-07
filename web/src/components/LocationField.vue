@@ -31,6 +31,10 @@ async function locate() {
         `/geo/reverse?lat=${pos.lat}&lng=${pos.lng}`,
       )
       candidates.value = res.candidates
+      if (res.candidates.length === 0) {
+        // 高德只覆盖国内，境外坐标会返回空
+        message.value = '这个位置解析不出地址（高德仅覆盖国内），坐标已记录，可手动填写'
+      }
       // 地址为空时默认填第一个，用户已手动填过的不覆盖
       if (!model.value.address && res.candidates[0]) {
         model.value = { ...model.value, address: res.candidates[0].label }
