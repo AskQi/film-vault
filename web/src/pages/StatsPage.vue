@@ -36,7 +36,10 @@ onMounted(load)
   <div class="mx-auto max-w-3xl px-4 pt-6">
     <header class="mb-6 flex items-center justify-between">
       <h1 class="text-2xl font-semibold">统计</h1>
-      <RouterLink to="/cameras" class="rounded-xl bg-slate-800 px-4 py-2 text-sm">机身镜头</RouterLink>
+      <div class="flex gap-2">
+        <a href="/api/backup" class="rounded-xl bg-slate-800 px-4 py-2 text-sm">备份</a>
+        <RouterLink to="/cameras" class="rounded-xl bg-slate-800 px-4 py-2 text-sm">机身镜头</RouterLink>
+      </div>
     </header>
 
     <div v-if="loading" class="py-16 text-center text-slate-500">加载中…</div>
