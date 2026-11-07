@@ -12,7 +12,6 @@ const router = createRouter({
     { path: '/rolls', name: 'rolls', component: () => import('./pages/RollsPage.vue') },
     { path: '/rolls/:id', name: 'roll-detail', component: () => import('./pages/RollDetailPage.vue') },
     { path: '/new', name: 'new-roll', component: () => import('./pages/NewRollPage.vue') },
-    { path: '/labels', name: 'labels', component: () => import('./pages/LabelsPage.vue') },
     { path: '/stats', name: 'stats', component: () => import('./pages/StatsPage.vue') },
     { path: '/cameras', name: 'cameras', component: () => import('./pages/CamerasPage.vue') },
     { path: '/:pathMatch(.*)*', redirect: '/' },

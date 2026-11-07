@@ -10,6 +10,7 @@ import fastifyStatic from '@fastify/static'
 import { existsSync } from 'node:fs'
 
 import { config } from './config.js'
+import { isApiPath } from './lib/paths.js'
 import type { Db } from './db/client.js'
 import { isAuthenticated } from './lib/auth.js'
 import { authRoutes } from './routes/auth.js'
@@ -17,7 +18,6 @@ import { stocksRoutes } from './routes/stocks.js'
 import { scanRoutes } from './routes/scan.js'
 import { rollRoutes } from './routes/rolls.js'
 import { progressRoutes } from './routes/progress.js'
-import { labelRoutes } from './routes/labels.js'
 import { cameraRoutes } from './routes/cameras.js'
 import { statsRoutes } from './routes/stats.js'
 import { frameNoteRoutes } from './routes/frame-notes.js'
@@ -52,7 +52,7 @@ export async function buildApp({ db, logger = false }: BuildAppOptions): Promise
   // 鉴权：/api 下除白名单外全部要求登录
   app.addHook('onRequest', async (req, reply) => {
     const url = req.url.split('?')[0] ?? ''
-    if (!url.startsWith('/api/')) return
+    if (!isApiPath(url)) return
     if (PUBLIC_API_PATHS.has(url)) return
     if (url.startsWith('/api/auth/')) return
     if (isAuthenticated(req)) return
@@ -66,7 +66,6 @@ export async function buildApp({ db, logger = false }: BuildAppOptions): Promise
   await app.register(scanRoutes, { prefix: '/api' })
   await app.register(rollRoutes, { prefix: '/api/rolls' })
   await app.register(progressRoutes, { prefix: '/api' })
-  await app.register(labelRoutes, { prefix: '/api/labels' })
   await app.register(cameraRoutes, { prefix: '/api' })
   await app.register(statsRoutes, { prefix: '/api' })
   await app.register(frameNoteRoutes, { prefix: '/api' })
@@ -84,7 +83,10 @@ export async function buildApp({ db, logger = false }: BuildAppOptions): Promise
   if (existsSync(config.webDist)) {
     await app.register(fastifyStatic, { root: config.webDist, wildcard: false })
     app.setNotFoundHandler((req, reply) => {
-      if (req.url.startsWith('/api/')) {
+      // 注意用 isApiPath：'/api' 本身没有结尾斜杠，若只判断 '/api/' 会被
+      // 当成前端路由回落到 index.html，前端拿到 HTML 去 JSON.parse 就报
+      // "Unexpected token '<'"——这类错误极难定位，所以按前缀统一拦成 404。
+      if (isApiPath(req.url.split('?')[0] ?? '')) {
         return reply.code(404).send({ error: '接口不存在' })
       }
       return reply.sendFile('index.html')

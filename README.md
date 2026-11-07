@@ -36,7 +36,7 @@ pnpm dev
 # 前端 http://localhost:5173   后端 http://localhost:3300
 ```
 
-默认 PIN 为 `1234`，生产环境必须通过环境变量覆盖（见 `.env.example`）。
+PIN 与会话密钥写在仓库根目录的 `.env`（参照 `.env.example`，该文件不进版本库）。未配置时 PIN 回退为 `1234`，生产环境禁止使用默认值。
 
 ### 常用命令
 

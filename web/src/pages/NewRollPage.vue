@@ -1,13 +1,12 @@
 <script setup lang="ts">
 /** 建档：单卷 / 批量。型号选择后自动带出前缀与下一个编号。 */
-import { computed, onMounted, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { api } from '../lib/api.js'
 import type { Stock } from '../lib/types.js'
 import ScanSheet from '../components/ScanSheet.vue'
 
 const route = useRoute()
-const router = useRouter()
 
 const stocks = ref<Stock[]>([])
 const stockId = ref<number | null>(null)
@@ -19,6 +18,9 @@ const error = ref<string | null>(null)
 const submitting = ref(false)
 const created = ref<{ code: string; id: number }[]>([])
 const scannerOpen = ref(false)
+/** 建档成功后的编号结果面板 */
+const showResult = ref(false)
+const copied = ref(false)
 /** 扫到的原始内容：可能是 7 位编号，也可能是包装盒条码 */
 const scannedRaw = ref<string | null>(null)
 
@@ -175,15 +177,38 @@ async function submit() {
     }
 
     if (created.value.length > 0) {
-      // 建档完成直接去打印标签
-      const ids = created.value.map((r) => r.id).join(',')
-      await router.push({ name: 'labels', query: { rollIds: ids } })
+      // 建档完成：展示编号，供复制到其他 app 生成标签
+      // 本系统不再内置标签打印
+      showResult.value = true
+      copied.value = false
+      await nextTick()
+      await refreshNext()
     }
   } catch (e) {
     error.value = (e as Error).message
   } finally {
     submitting.value = false
   }
+}
+
+/** 复制刚生成的编号，一行一个 */
+async function copyCodes() {
+  const text = created.value.map((r) => r.code).join('\n')
+  try {
+    await navigator.clipboard.writeText(text)
+    copied.value = true
+    setTimeout(() => (copied.value = false), 2000)
+  } catch {
+    error.value = '复制失败，请长按选择编号手动复制'
+  }
+}
+
+/** 继续建下一批 */
+function restart() {
+  showResult.value = false
+  created.value = []
+  serial.value = ''
+  void refreshNext()
 }
 
 onMounted(loadStocks)
@@ -193,109 +218,153 @@ onMounted(loadStocks)
   <div class="mx-auto max-w-3xl px-4 pt-6">
     <h1 class="mb-4 text-2xl font-semibold">建档</h1>
 
-    <section class="mb-4">
-      <label class="mb-1.5 block text-xs text-slate-400">型号</label>
-      <select
-        v-model.number="stockId"
-        class="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-3 text-sm outline-none focus:border-amber-500"
-      >
-        <option :value="null">选择型号</option>
-        <option v-for="s in stocks" :key="s.id" :value="s.id">
-          {{ s.prefix }} · {{ s.name }}
-        </option>
-      </select>
-      <p v-if="nextHint" class="mt-1.5 text-xs text-slate-500">
-        下一个可用：<span class="code-text text-amber-400">{{ nextHint.code }}</span>
-      </p>
-    </section>
+    <!-- 建档结果：编号列表，供复制到其他 app 生成标签 -->
+    <template v-if="showResult">
+      <div class="mb-4 rounded-2xl border border-emerald-900/60 bg-emerald-950/20 p-4 text-center">
+        <div class="text-2xl">✓</div>
+        <p class="mt-1 text-sm text-emerald-300">已建档 {{ created.length }} 卷</p>
+      </div>
 
-    <div class="mb-4 flex rounded-xl bg-slate-900 p-1">
-      <button
-        class="flex-1 rounded-lg py-2 text-sm"
-        :class="mode === 'single' ? 'bg-slate-800 text-slate-100' : 'text-slate-400'"
-        @click="mode = 'single'"
-      >
-        单卷
-      </button>
-      <button
-        class="flex-1 rounded-lg py-2 text-sm"
-        :class="mode === 'batch' ? 'bg-slate-800 text-slate-100' : 'text-slate-400'"
-        @click="mode = 'batch'"
-      >
-        批量（一盒多卷）
-      </button>
-    </div>
-
-    <section class="mb-4 space-y-3">
-      <div>
-        <label class="mb-1.5 block text-xs text-slate-400">
-          {{ mode === 'batch' ? '起始序号' : '序号' }}
-        </label>
-        <div class="flex items-center gap-2">
-          <span v-if="prefix" class="code-text text-lg text-amber-400">{{ prefix }}</span>
-          <input
-            v-model="serial"
-            maxlength="3"
-            placeholder="001"
-            class="code-text w-28 rounded-xl border border-slate-800 bg-slate-900 px-3 py-3 text-center text-lg outline-none focus:border-amber-500"
-          />
-          <button
-            v-if="mode === 'single'"
-            class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-800 text-xl active:bg-slate-700"
-            title="扫编号或包装条码"
-            @click="scannerOpen = true"
-          >
-            ⌗
+      <div class="mb-4 rounded-2xl border border-slate-800 bg-slate-900 p-4">
+        <div class="mb-3 flex items-center justify-between">
+          <span class="text-sm text-slate-400">编号（一行一个，可直接复制）</span>
+          <button class="rounded-lg bg-slate-800 px-3 py-1.5 text-xs" @click="copyCodes">
+            {{ copied ? '已复制 ✓' : '复制全部' }}
           </button>
         </div>
-        <p v-if="mode === 'single'" class="mt-1.5 text-xs text-slate-500">
-          扫编号自动定位型号与序号，扫包装条码自动定位型号
-        </p>
-      </div>
-
-      <div v-if="mode === 'batch'">
-        <label class="mb-1.5 block text-xs text-slate-400">数量（最多 50）</label>
-        <input
-          v-model.number="count"
-          type="number"
-          min="1"
-          max="50"
-          class="w-28 rounded-xl border border-slate-800 bg-slate-900 px-3 py-3 text-center tabular-nums outline-none focus:border-amber-500"
-        />
-        <div v-if="preview.length" class="mt-2 flex flex-wrap gap-1.5">
-          <span
-            v-for="code in preview"
-            :key="code"
-            class="code-text rounded-lg bg-slate-800 px-2 py-1 text-xs text-slate-300"
+        <div class="select-all space-y-1">
+          <div
+            v-for="r in created"
+            :key="r.id"
+            class="code-text rounded-lg bg-slate-950 px-3 py-2 text-lg text-amber-400"
           >
-            {{ code }}
-          </span>
+            {{ r.code }}
+          </div>
         </div>
       </div>
 
-      <div>
-        <label class="mb-1.5 block text-xs text-slate-400">每卷张数</label>
-        <input
-          v-model.number="framesTotal"
-          type="number"
-          min="1"
-          max="200"
-          class="w-28 rounded-xl border border-slate-800 bg-slate-900 px-3 py-3 text-center tabular-nums outline-none focus:border-amber-500"
-        />
+      <p class="mb-4 text-xs text-slate-500">
+        标签在本系统之外生成即可。行距与字体请在打印 app 里按标签纸尺寸调整。
+      </p>
+
+      <div class="flex gap-2">
+        <button class="flex-1 rounded-2xl bg-slate-800 py-4 text-base" @click="restart">
+          继续建档
+        </button>
+        <RouterLink
+          to="/rolls"
+          class="flex-1 rounded-2xl bg-amber-500 py-4 text-center text-base font-medium text-slate-950"
+        >
+          去胶卷库
+        </RouterLink>
       </div>
-    </section>
+    </template>
 
-    <p v-if="error" class="mb-4 rounded-xl border border-red-900 bg-red-950/40 p-3 text-sm text-red-300">
-      {{ error }}
-    </p>
+    <template v-else>
+      <section class="mb-4">
+        <label class="mb-1.5 block text-xs text-slate-400">型号</label>
+        <select
+          v-model.number="stockId"
+          class="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-3 text-sm outline-none focus:border-amber-500"
+        >
+          <option :value="null">选择型号</option>
+          <option v-for="s in stocks" :key="s.id" :value="s.id">
+            {{ s.prefix }} · {{ s.name }}
+          </option>
+        </select>
+        <p v-if="nextHint" class="mt-1.5 text-xs text-slate-500">
+          下一个可用：<span class="code-text text-amber-400">{{ nextHint.code }}</span>
+        </p>
+      </section>
 
-    <button
-      :disabled="submitting || !stockId || !serial"
-      class="w-full rounded-2xl bg-amber-500 py-4 text-lg font-medium text-slate-950 disabled:opacity-40"
-      @click="submit"
-    >
-      {{ submitting ? '建档中…' : mode === 'batch' ? `建档 ${count} 卷` : '建档' }}
-    </button>
+      <div class="mb-4 flex rounded-xl bg-slate-900 p-1">
+        <button
+          class="flex-1 rounded-lg py-2 text-sm"
+          :class="mode === 'single' ? 'bg-slate-800 text-slate-100' : 'text-slate-400'"
+          @click="mode = 'single'"
+        >
+          单卷
+        </button>
+        <button
+          class="flex-1 rounded-lg py-2 text-sm"
+          :class="mode === 'batch' ? 'bg-slate-800 text-slate-100' : 'text-slate-400'"
+          @click="mode = 'batch'"
+        >
+          批量（一盒多卷）
+        </button>
+      </div>
+
+      <section class="mb-4 space-y-3">
+        <div>
+          <label class="mb-1.5 block text-xs text-slate-400">
+            {{ mode === 'batch' ? '起始序号' : '序号' }}
+          </label>
+          <div class="flex items-center gap-2">
+            <span v-if="prefix" class="code-text text-lg text-amber-400">{{ prefix }}</span>
+            <input
+              v-model="serial"
+              maxlength="3"
+              placeholder="001"
+              class="code-text w-28 rounded-xl border border-slate-800 bg-slate-900 px-3 py-3 text-center text-lg outline-none focus:border-amber-500"
+            />
+            <button
+              v-if="mode === 'single'"
+              class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-800 text-xl active:bg-slate-700"
+              title="扫编号或包装条码"
+              @click="scannerOpen = true"
+            >
+              ⌗
+            </button>
+          </div>
+          <p v-if="mode === 'single'" class="mt-1.5 text-xs text-slate-500">
+            扫编号自动定位型号与序号，扫包装条码自动定位型号
+          </p>
+        </div>
+
+        <div v-if="mode === 'batch'">
+          <label class="mb-1.5 block text-xs text-slate-400">数量（最多 50）</label>
+          <input
+            v-model.number="count"
+            type="number"
+            min="1"
+            max="50"
+            class="w-28 rounded-xl border border-slate-800 bg-slate-900 px-3 py-3 text-center tabular-nums outline-none focus:border-amber-500"
+          />
+          <div v-if="preview.length" class="mt-2 flex flex-wrap gap-1.5">
+            <span
+              v-for="code in preview"
+              :key="code"
+              class="code-text rounded-lg bg-slate-800 px-2 py-1 text-xs text-slate-300"
+            >
+              {{ code }}
+            </span>
+          </div>
+        </div>
+
+        <div>
+          <label class="mb-1.5 block text-xs text-slate-400">每卷张数</label>
+          <input
+            v-model.number="framesTotal"
+            type="number"
+            min="1"
+            max="200"
+            class="w-28 rounded-xl border border-slate-800 bg-slate-900 px-3 py-3 text-center tabular-nums outline-none focus:border-amber-500"
+          />
+        </div>
+      </section>
+
+      <p v-if="error" class="mb-4 rounded-xl border border-red-900 bg-red-950/40 p-3 text-sm text-red-300">
+        {{ error }}
+      </p>
+
+      <button
+        :disabled="submitting || !stockId || !serial"
+        class="w-full rounded-2xl bg-amber-500 py-4 text-lg font-medium text-slate-950 disabled:opacity-40"
+        @click="submit"
+      >
+        {{ submitting ? '建档中…' : mode === 'batch' ? `建档 ${count} 卷` : '建档' }}
+      </button>
+    </template>
 
     <ScanSheet :open="scannerOpen" @close="scannerOpen = false" @scanned="handleScanned" />
   </div>
