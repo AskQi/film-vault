@@ -13,7 +13,7 @@ const showNav = computed(() => route.name !== 'login')
 const tabs = [
   { name: 'home', path: '/', label: '首页', icon: '◉' },
   { name: 'rolls', path: '/rolls', label: '胶卷库', icon: '▤' },
-  { name: 'scan', path: '/scan', label: '扫码', icon: '▣' },
+  { name: 'new', path: '/new', label: '建档', icon: '＋' },
   { name: 'stocks', path: '/stocks', label: '型号库', icon: '☰' },
   { name: 'stats', path: '/stats', label: '统计', icon: '◔' },
 ]

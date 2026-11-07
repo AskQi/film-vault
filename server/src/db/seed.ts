@@ -12,6 +12,7 @@ import { createDb, runMigrations } from './client.js'
 import { seedCodebook } from './seed-codebook.js'
 import { parseStocksTsv } from './stocks-tsv.js'
 import { importStocks } from './import-stocks.js'
+import { seedCameras } from './seed-cameras.js'
 
 const dbPath = `${dataDir}/film-vault.db`
 
@@ -35,4 +36,7 @@ const result = importStocks(db, rows)
 console.log(
   `✓ 型号库：新增 ${result.inserted}，更新 ${result.updated}，系列 ${result.seriesInserted}`,
 )
+seedCameras(db)
+console.log('✓ 机身镜头预置已检查')
+
 console.log(`  数据库：${dbPath}`)

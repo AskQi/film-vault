@@ -34,7 +34,10 @@ onMounted(load)
 
 <template>
   <div class="mx-auto max-w-3xl px-4 pt-6">
-    <h1 class="mb-6 text-2xl font-semibold">统计</h1>
+    <header class="mb-6 flex items-center justify-between">
+      <h1 class="text-2xl font-semibold">统计</h1>
+      <RouterLink to="/cameras" class="rounded-xl bg-slate-800 px-4 py-2 text-sm">机身镜头</RouterLink>
+    </header>
 
     <div v-if="loading" class="py-16 text-center text-slate-500">加载中…</div>
     <p v-else-if="error" class="rounded-xl border border-red-900 bg-red-950/40 p-3 text-sm text-red-300">

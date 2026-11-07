@@ -4,6 +4,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api } from '../lib/api.js'
 import type { Stock } from '../lib/types.js'
+import ScanSheet from '../components/ScanSheet.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -17,6 +18,9 @@ const framesTotal = ref(36)
 const error = ref<string | null>(null)
 const submitting = ref(false)
 const created = ref<{ code: string; id: number }[]>([])
+const scannerOpen = ref(false)
+/** 扫到的原始内容：可能是 7 位编号，也可能是包装盒条码 */
+const scannedRaw = ref<string | null>(null)
 
 const selected = computed(() => stocks.value.find((s) => s.id === stockId.value) ?? null)
 const prefix = computed(() => selected.value?.prefix ?? '')
@@ -35,6 +39,50 @@ const preview = computed(() => {
     return prefix.value + serialFromSeqLocal(seq)
   }).filter((v): v is string => v !== null)
 })
+
+/**
+ * 扫到内容后的回填：
+ *   7 位 → 视为编号，拆出前缀定位型号，序号回填
+ *   纯数字 8-14 位 → 视为包装条码，走 /api/scan 查型号
+ */
+async function handleScanned(raw: string) {
+  scannerOpen.value = false
+  scannedRaw.value = raw
+  error.value = null
+
+  const text = raw.trim()
+
+  if (/^[A-Za-z0-9]{7}$/.test(text)) {
+    const codePrefix = text.slice(0, 4)
+    const hit = stocks.value.find((s) => s.prefix === codePrefix)
+    if (hit) {
+      stockId.value = hit.id
+      serial.value = text.slice(4)
+      return
+    }
+    error.value = `前缀 ${codePrefix} 不在型号库中，请先到型号库补齐型号`
+    return
+  }
+
+  // 包装条码：查已绑定的型号
+  try {
+    const res = await api.post<{ kind: string; stock: { id: number; name: string } | null }>(
+      '/scan',
+      { raw: text },
+    )
+    if (res.kind === 'barcode' && res.stock) {
+      const hit = stocks.value.find((s) => s.id === res.stock!.id)
+      if (hit) {
+        stockId.value = hit.id
+        error.value = null
+        return
+      }
+    }
+    error.value = `条码 ${text} 尚未绑定到任何型号`
+  } catch (e) {
+    error.value = (e as Error).message
+  }
+}
 
 function headIndexLocal(ch: string): number {
   if (ch >= '0' && ch <= '9') return ch.charCodeAt(0) - 48
@@ -191,7 +239,18 @@ onMounted(loadStocks)
             placeholder="001"
             class="code-text w-28 rounded-xl border border-slate-800 bg-slate-900 px-3 py-3 text-center text-lg outline-none focus:border-amber-500"
           />
+          <button
+            v-if="mode === 'single'"
+            class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-800 text-xl active:bg-slate-700"
+            title="扫编号或包装条码"
+            @click="scannerOpen = true"
+          >
+            ⌗
+          </button>
         </div>
+        <p v-if="mode === 'single'" class="mt-1.5 text-xs text-slate-500">
+          扫编号自动定位型号与序号，扫包装条码自动定位型号
+        </p>
       </div>
 
       <div v-if="mode === 'batch'">
@@ -237,5 +296,7 @@ onMounted(loadStocks)
     >
       {{ submitting ? '建档中…' : mode === 'batch' ? `建档 ${count} 卷` : '建档' }}
     </button>
+
+    <ScanSheet :open="scannerOpen" @close="scannerOpen = false" @scanned="handleScanned" />
   </div>
 </template>
