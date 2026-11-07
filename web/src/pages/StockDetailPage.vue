@@ -20,6 +20,8 @@ const loading = ref(true)
 const error = ref<string | null>(null)
 const barcodeInput = ref('')
 const scannerOpen = ref(false)
+/** 绑定成功后的短暂提示 */
+const bindHint = ref<string | null>(null)
 const savingPersonal = ref(false)
 const personalDraft = ref({ nickname: '', myNotes: '', myRating: 0, refPrice: '' })
 
@@ -67,8 +69,15 @@ async function savePersonal() {
 async function bindBarcode() {
   if (!detail.value || !barcodeInput.value.trim()) return
   try {
-    await api.post(`/stocks/${detail.value.id}/barcodes`, { barcode: barcodeInput.value.trim() })
+    // 服务端会把 12 位 UPC-A 归一化成 13 位 EAN-13 再入库
+    const res = await api.post<{ ok: boolean; barcode?: string }>(
+      `/stocks/${detail.value.id}/barcodes`,
+      { barcode: barcodeInput.value.trim() },
+    )
     barcodeInput.value = ''
+    error.value = null
+    bindHint.value = res.barcode ? `已绑定 ${res.barcode}` : '已绑定'
+    setTimeout(() => (bindHint.value = null), 2500)
     await load()
   } catch (e) {
     error.value = (e as Error).message
@@ -240,7 +249,10 @@ onMounted(load)
           </button>
           <button class="rounded-xl bg-slate-800 px-4 py-2.5 text-sm" @click="bindBarcode">绑定</button>
         </div>
-        <p class="mb-2 text-xs text-slate-500">点 ⌗ 扫包装盒上的条码，可连续扫码绑定多个</p>
+        <p class="mb-2 text-xs text-slate-500">
+          点 ⌗ 扫包装盒上的条码，可连续扫码绑定多个。UPC-A 与 EAN-13 视为同一条码
+        </p>
+        <p v-if="bindHint" class="mb-2 text-xs text-emerald-400">✓ {{ bindHint }}</p>
         <div v-if="detail.barcodes.length === 0" class="text-sm text-slate-600">尚未绑定</div>
         <div v-else class="space-y-2">
           <div

@@ -1,9 +1,10 @@
 /** 扫码分流：编号 / 未知前缀 / 包装条码 / 无法识别 */
 import type { FastifyPluginAsync } from 'fastify'
 import { scanInputSchema } from '@film-vault/shared'
-import { eq } from 'drizzle-orm'
+import { eq, inArray } from 'drizzle-orm'
 import { resolveScan } from '../lib/stocks.js'
 import { stockBarcode, filmStock, roll } from '../db/schema/index.js'
+import { barcodeCandidates, normalizeBarcode } from '../lib/barcode.js'
 
 export const scanRoutes: FastifyPluginAsync = async (app) => {
   app.post('/scan', async (req, reply) => {
@@ -17,6 +18,9 @@ export const scanRoutes: FastifyPluginAsync = async (app) => {
 
     switch (result.kind) {
       case 'barcode': {
+        // UPC-A(12) 与 EAN-13(13) 是同一个商品，扫码器给哪种都可能，
+        // 因此把两种写法都查一遍，才能命中按任一形式绑定的记录
+        const candidates = barcodeCandidates(result.barcode)
         const hit = db
           .select({
             stockId: filmStock.id,
@@ -26,12 +30,12 @@ export const scanRoutes: FastifyPluginAsync = async (app) => {
           })
           .from(stockBarcode)
           .innerJoin(filmStock, eq(stockBarcode.stockId, filmStock.id))
-          .where(eq(stockBarcode.barcode, result.barcode))
+          .where(inArray(stockBarcode.barcode, candidates))
           .get()
 
         return hit
-          ? { kind: 'barcode', barcode: result.barcode, stock: hit, known: true }
-          : { kind: 'barcode', barcode: result.barcode, stock: null, known: false }
+          ? { kind: 'barcode', barcode: normalizeBarcode(result.barcode), stock: hit, known: true }
+          : { kind: 'barcode', barcode: normalizeBarcode(result.barcode), stock: null, known: false }
       }
 
       case 'roll': {

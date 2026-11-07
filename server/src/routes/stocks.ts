@@ -1,6 +1,6 @@
 /** 型号库：列表、详情、新建/编辑、字母占用表、条码绑定、下一个编号 */
 import type { FastifyPluginAsync } from 'fastify'
-import { and, asc, desc, eq, isNull, like, or, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, inArray, isNull, like, or, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import {
   BRANDS,
@@ -20,6 +20,7 @@ import {
 } from '../db/schema/index.js'
 import { allocateSeq, peekNext, AllocationError } from '../lib/allocate.js'
 import { parseImportText, suggestFreeLetters } from '../lib/text-import.js'
+import { barcodeCandidates, normalizeBarcode } from '../lib/barcode.js'
 
 const listQuerySchema = z.object({
   q: z.string().optional(),
@@ -384,26 +385,38 @@ export const stocksRoutes: FastifyPluginAsync = async (app) => {
     const stock = db.select().from(filmStock).where(eq(filmStock.id, id)).get()
     if (!stock) return reply.code(404).send({ error: '型号不存在' })
 
-    const existing = db.select().from(stockBarcode).where(eq(stockBarcode.barcode, body.barcode)).get()
+    // 统一存 13 位（12 位 UPC-A 补前导零），查询时再同时试两种写法
+    const barcode = normalizeBarcode(body.barcode)
+
+    // 要按候选写法查重，否则同一个条码会以 12 位和 13 位各存一份
+    const existing = db
+      .select()
+      .from(stockBarcode)
+      .where(inArray(stockBarcode.barcode, barcodeCandidates(body.barcode)))
+      .get()
     if (existing) {
-      if (existing.stockId === id) return { ok: true }
+      if (existing.stockId === id) return { ok: true, barcode }
       return reply.code(409).send({ error: '该条码已绑定到其他型号' })
     }
 
     db.insert(stockBarcode)
       .values({
-        barcode: body.barcode,
+        barcode,
         stockId: id,
         source: body.source ?? 'manual',
         createdAt: new Date().toISOString(),
       })
       .run()
-    return reply.code(201).send({ ok: true })
+    return reply.code(201).send({ ok: true, barcode })
   })
 
   app.delete('/barcodes/:barcode', async (req) => {
-    const barcode = (req.params as { barcode: string }).barcode
-    app.db.delete(stockBarcode).where(eq(stockBarcode.barcode, barcode)).run()
+    const raw = (req.params as { barcode: string }).barcode
+    // 解绑时同样要覆盖两种写法，否则点了「解绑」却没删掉
+    app.db
+      .delete(stockBarcode)
+      .where(inArray(stockBarcode.barcode, barcodeCandidates(raw)))
+      .run()
     return { ok: true }
   })
 
