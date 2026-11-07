@@ -5,7 +5,7 @@ import { api } from '../lib/api.js'
 import type { RollListItem } from '../lib/types.js'
 
 const props = defineProps<{ roll: RollListItem }>()
-const emit = defineEmits<{ updated: [] }>()
+const emit = defineEmits<{ updated: []; record: [] }>()
 
 const busy = ref(false)
 const error = ref<string | null>(null)
@@ -41,12 +41,12 @@ async function record(delta: number) {
         </RouterLink>
         <p class="mt-1 truncate text-sm text-slate-400">{{ roll.stockName }}</p>
       </div>
-      <div class="shrink-0 text-right">
+      <button class="shrink-0 text-right" @click="emit('record')">
         <div class="text-2xl font-semibold tabular-nums">
           {{ roll.reachedFrame }}<span class="text-base text-slate-500">/{{ roll.framesTotal }}</span>
         </div>
-        <div class="text-xs text-slate-500">已拍张数</div>
-      </div>
+        <div class="text-xs text-amber-500/80">记一笔 ›</div>
+      </button>
     </div>
 
     <div class="mt-3 h-2 overflow-hidden rounded-full bg-slate-800">

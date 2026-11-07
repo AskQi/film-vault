@@ -7,10 +7,13 @@ import { onMounted, ref } from 'vue'
 import { api } from '../lib/api.js'
 import type { RollListItem } from '../lib/types.js'
 import RollCard from '../components/RollCard.vue'
+import RecordSheet from '../components/RecordSheet.vue'
 
 const rolls = ref<RollListItem[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
+/** 当前打开「记一笔」的胶卷 */
+const recording = ref<RollListItem | null>(null)
 
 async function load() {
   loading.value = true
@@ -54,7 +57,20 @@ onMounted(load)
     </div>
 
     <div v-else class="space-y-3">
-      <RollCard v-for="roll in rolls" :key="roll.id" :roll="roll" @updated="load" />
+      <RollCard
+        v-for="roll in rolls"
+        :key="roll.id"
+        :roll="roll"
+        @updated="load"
+        @record="recording = roll"
+      />
     </div>
+
+    <RecordSheet
+      :open="recording !== null"
+      :roll="recording"
+      @close="recording = null"
+      @saved="load"
+    />
   </div>
 </template>
