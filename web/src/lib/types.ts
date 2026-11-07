@@ -98,7 +98,8 @@ export interface ScanResult {
   prefix?: string
   seq?: number
   serialTxt?: string
-  stock?: { id: number; name: string; framesTotal?: number | null } | null
+  /** roll / barcode 两种分支都返回带 id 的型号信息 */
+  stock?: { id: number; name: string; framesTotal?: number | null; format?: string } | null
   existing?: { id: number; status: string; framesTotal: number } | null
   known?: boolean
   hint?: string

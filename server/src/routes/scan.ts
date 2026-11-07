@@ -22,11 +22,14 @@ export const scanRoutes: FastifyPluginAsync = async (app) => {
         // 因此把两种写法都查一遍，才能命中按任一形式绑定的记录
         const candidates = barcodeCandidates(result.barcode)
         const hit = db
+          // 字段名统一用 id：roll 分支返回的 stock 也带 id，
+          // 前端两处共用同一个 ScanResult 类型，字段名不一致会让查找静默失败
           .select({
-            stockId: filmStock.id,
+            id: filmStock.id,
             name: filmStock.name,
             brandCode: filmStock.brandCode,
             format: filmStock.format,
+            framesTotal: filmStock.defaultFrames,
           })
           .from(stockBarcode)
           .innerJoin(filmStock, eq(stockBarcode.stockId, filmStock.id))
