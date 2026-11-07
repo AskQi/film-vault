@@ -10,6 +10,34 @@
 2. `docs/02-技术方案.md` — 架构、选型、数据模型、接口设计、部署方案
 3. `docs/03-任务规划.md` — 里程碑拆解与验收标准
 
+## ⚠️ 生产环境（最高优先级）
+
+**2026-11-07 起本项目已在生产环境运行，库里是真实数据，不是测试数据。**
+
+| 项 | 说明 |
+|---|---|
+| 地址 | `https://film.ddns.sharepeople.cn:8443` |
+| 服务器 | `root@192.168.10.42`，项目在 `/opt/film-vault` |
+| 数据位置 | `/opt/film-vault/storage/film-vault.db`（Docker 卷挂载） |
+| 开机自启 | `docker` 服务 + `film-vault.service`（systemd） |
+
+**铁律：任何变更都不得破坏已有数据。**
+
+1. **禁止**任何删除、重建、重置生产数据库的操作。本地 `rm -rf storage` 可以，
+   生产上绝不可以。
+2. **禁止**在迁移里做破坏性变更（DROP TABLE / DROP COLUMN / 改列类型且丢精度）。
+   只允许**增量迁移**：加表、加列（可空或带默认值）、加索引。
+3. 加列必须**向后兼容**：要么 `NULL`，要么有 `DEFAULT`。旧代码读新库、新代码读旧库
+   都不能崩。
+4. 改字段语义时，先加新字段并双写，等确认无回退风险后再考虑废弃旧字段；
+   **不要在同一次变更里同时改代码和删字段**。
+5. 涉及数据变更的改动，提交前必须说明：**旧数据会发生什么**。
+6. 部署前先备份：`docker compose exec app node -e "...wal_checkpoint..."` 后
+   打包 `storage/`，或走应用内「统计 → 备份」。
+7. 需要清空数据时，先问用户确认，并明确说明会丢什么。
+
+> 违反这条的代价不是「重跑一次种子」，而是用户真实拍过的胶卷记录永久丢失。
+
 ## 核心约束（不可随意更改）
 
 1. **单用户**，不做权限体系、不做分享链接（需要分享时用户自己截图）。
@@ -55,14 +83,14 @@ K G 2 T 001     → Kodak · Gold · ISO200 · 135 · 第1卷   （恒 7 字符�
 - 后端：Node 22 + Fastify + Zod + Drizzle ORM
 - 数据库：SQLite（WAL）
 - 扫码：`BarcodeDetector` + `barcode-detector` WASM polyfill（无原生依赖）
-- 条码生成：`bwip-js`（Code 128）
-- 部署：Docker Compose + Caddy
+- 部署：Docker Compose + 上层反向代理（nginx，负责 TLS）
 
 ## 目录结构
 
 ```
-docs/      需求、方案、规划
-data/      型号库 seed 数据（film-stocks.tsv，139 条）
+docs/      需求、方案、规划、部署
+data/      型号库 seed 数据（film-stocks.tsv，139 条 + 已知包装条码）
+deploy/    nginx 站点配置
 server/    Fastify 服务端
 web/       Vue 3 PWA
 shared/    Zod schema、类型、码表常量
@@ -74,3 +102,4 @@ scripts/   打包、标签模板
 - 所有对话与文档使用**中文**。
 - 修改代码时注意与已有代码/注释的一致性。
 - 完成修改后总结并提交 commit（不 push，用户自行检视）。
+- **生产环境的变更必须先考虑老数据兼容性**，见上方「生产环境」一节。
