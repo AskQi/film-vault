@@ -19,6 +19,7 @@ import {
   pendingStock,
 } from '../db/schema/index.js'
 import { allocateSeq, peekNext, AllocationError } from '../lib/allocate.js'
+import { parseImportText, suggestFreeLetters } from '../lib/text-import.js'
 
 const listQuerySchema = z.object({
   q: z.string().optional(),
@@ -387,4 +388,289 @@ export const stocksRoutes: FastifyPluginAsync = async (app) => {
     app.db.delete(stockBarcode).where(eq(stockBarcode.barcode, barcode)).run()
     return { ok: true }
   })
+
+  // 待认领列表
+  app.get('/pending', async () => {
+    const rows = app.db.select().from(pendingStock).orderBy(desc(pendingStock.seenCount)).all()
+    return { items: rows }
+  })
+
+  // 认领：把一个待认领前缀挂到已有型号，或新建型号
+  app.post('/pending/:id/claim', async (req, reply) => {
+    const id = Number((req.params as { id: string }).id)
+    const body = z
+      .object({
+        stockId: z.number().int().positive().optional(),
+        newStock: z
+          .object({
+            seriesCode: z.string().length(1).regex(/^[A-Z]$/),
+            name: z.string().min(1),
+            nominalFrames: z.number().int().min(1).max(200).nullable().optional(),
+            process: z.string().max(20).nullable().optional(),
+            colorType: z.enum(['color_negative', 'color_positive', 'bw']).nullable().optional(),
+          })
+          .optional(),
+      })
+      .parse(req.body)
+
+    const db = app.db
+    const pending = db.select().from(pendingStock).where(eq(pendingStock.id, id)).get()
+    if (!pending) return reply.code(404).send({ error: '待认领记录不存在' })
+
+    const check = validatePrefix(pending.prefix)
+    if (!check.ok) {
+      return reply.code(400).send({ error: `该前缀不合法：${check.reason}` })
+    }
+
+    const now = new Date().toISOString()
+
+    try {
+      const result = db.transaction((tx) => {
+        let stockId: number
+
+        if (body.stockId) {
+          const stock = tx.select().from(filmStock).where(eq(filmStock.id, body.stockId)).get()
+          if (!stock) throw new Error('目标型号不存在')
+          if (
+            stock.brandCode !== check.brand ||
+            stock.seriesCode !== check.series ||
+            stock.iso !== check.iso ||
+            stock.formatCode !== check.formatCode
+          ) {
+            throw new Error('该前缀与目标型号的品牌/系列/感光度/画幅不一致')
+          }
+          stockId = stock.id
+        } else if (body.newStock) {
+          const existingPrefix = tx
+            .select()
+            .from(stockPrefix)
+            .where(eq(stockPrefix.prefix, pending.prefix))
+            .get()
+          if (existingPrefix) throw new Error(`前缀 ${pending.prefix} 已被占用`)
+
+          const created = tx
+            .insert(filmStock)
+            .values({
+              brandCode: check.brand,
+              seriesCode: body.newStock.seriesCode,
+              isoCode: check.isoCode,
+              iso: check.iso,
+              formatCode: check.formatCode,
+              format: check.format,
+              name: body.newStock.name,
+              nominalFrames: body.newStock.nominalFrames ?? null,
+              defaultFrames: body.newStock.nominalFrames ?? null,
+              process: body.newStock.process ?? null,
+              colorType: body.newStock.colorType ?? null,
+              status: 'active',
+              createdAt: now,
+              updatedAt: now,
+            })
+            .returning({ id: filmStock.id })
+            .get()
+          stockId = created!.id
+        } else {
+          throw new Error('请指定 stockId 或 newStock')
+        }
+
+        // 挂上前缀（若该前缀尚未登记）
+        const existingPrefix = tx
+          .select()
+          .from(stockPrefix)
+          .where(eq(stockPrefix.prefix, pending.prefix))
+          .get()
+        if (!existingPrefix) {
+          const hasPrimary = tx
+            .select()
+            .from(stockPrefix)
+            .where(and(eq(stockPrefix.stockId, stockId), eq(stockPrefix.isPrimary, 1)))
+            .get()
+          tx.insert(stockPrefix)
+            .values({
+              prefix: pending.prefix,
+              stockId,
+              isPrimary: hasPrimary ? 0 : 1,
+              seqMax: 0,
+              note: '由待认领转入',
+            })
+            .run()
+        }
+
+        tx.delete(pendingStock).where(eq(pendingStock.id, id)).run()
+        return { stockId, prefix: pending.prefix }
+      })
+
+      return result
+    } catch (e) {
+      return reply.code(400).send({ error: (e as Error).message })
+    }
+  })
+
+  // 忽略待认领（比如误扫）
+  app.delete('/pending/:id', async (req) => {
+    const id = Number((req.params as { id: string }).id)
+    app.db.delete(pendingStock).where(eq(pendingStock.id, id)).run()
+    return { ok: true }
+  })
+
+  // 文本批量导入：先解析预览，确认后再落库
+  app.post('/import/text', async (req, reply) => {
+    const body = z.object({ text: z.string().min(1), commit: z.boolean().default(false) }).parse(req.body)
+    const db = app.db
+
+    const parsed = parseImportText(body.text)
+    const taken = new Set(db.select({ prefix: stockPrefix.prefix }).from(stockPrefix).all().map((r) => r.prefix))
+
+    const results = parsed.map((line) => {
+      if (!line.ok || !line.draft) return line
+
+      const prefix = line.suggestedPrefix!
+      if (taken.has(prefix)) {
+        const candidates = suggestFreeLetters(
+          line.draft.brandCode,
+          prefix[2]!,
+          line.draft.formatCode,
+          taken,
+        )
+        return {
+          ...line,
+          ok: false,
+          error: `前缀 ${prefix} 已被占用`,
+          candidates,
+          prefixNote: candidates.length
+            ? `可改用系列字母：${candidates.join(' / ')}`
+            : '该品牌在此 ISO 与画幅下已无空闲字母',
+        }
+      }
+      taken.add(prefix)
+      return line
+    })
+
+    if (!body.commit) {
+      return {
+        committed: false,
+        total: results.length,
+        okCount: results.filter((r) => r.ok).length,
+        lines: results,
+      }
+    }
+
+    const now = new Date().toISOString()
+    const inserted: { id: number; prefix: string; name: string }[] = []
+
+    db.transaction((tx) => {
+      for (const line of results) {
+        if (!line.ok || !line.draft) continue
+        const d = line.draft
+        const prefix = line.suggestedPrefix!
+        const stock = tx
+          .insert(filmStock)
+          .values({
+            brandCode: d.brandCode,
+            seriesCode: d.seriesCode,
+            isoCode: prefix[2]!,
+            iso: d.iso,
+            formatCode: d.formatCode,
+            format: d.format,
+            name: d.name,
+            nominalFrames: d.nominalFrames,
+            defaultFrames: d.nominalFrames,
+            process: d.process,
+            colorType: d.colorType,
+            status: 'active',
+            createdAt: now,
+            updatedAt: now,
+          })
+          .returning({ id: filmStock.id })
+          .get()
+        tx.insert(stockPrefix)
+          .values({ prefix, stockId: stock!.id, isPrimary: 1, seqMax: 0 })
+          .run()
+        inserted.push({ id: stock!.id, prefix, name: d.name })
+      }
+    })
+
+    return {
+      committed: true,
+      total: results.length,
+      okCount: results.filter((r) => r.ok).length,
+      inserted,
+      lines: results,
+    }
+  })
+
+  // CSV 导出：客观层 + 个人层，UTF-8 带 BOM 便于 Excel 打开中文
+  app.get('/export.csv', async (_req, reply) => {
+    const db = app.db
+    const rows = db
+      .select({
+        prefix: stockPrefix.prefix,
+        stock: filmStock,
+      })
+      .from(stockPrefix)
+      .innerJoin(filmStock, eq(stockPrefix.stockId, filmStock.id))
+      .where(and(eq(stockPrefix.isPrimary, 1), isNull(filmStock.deletedAt)))
+      .all()
+
+    const header = [
+      'prefix',
+      'brand_code',
+      'series_code',
+      'iso_code',
+      'iso',
+      'format_code',
+      'format',
+      'name',
+      'nominal_frames',
+      'process',
+      'color_type',
+      'status',
+      'nickname',
+      'usual_ei',
+      'push_pull_pref',
+      'my_rating',
+      'my_notes',
+      'ref_price',
+    ]
+
+    const esc = (v: unknown): string => {
+      if (v === null || v === undefined) return ''
+      const s = String(v)
+      return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+    }
+
+    const lines = [header.join(',')]
+    for (const { prefix, stock } of rows) {
+      lines.push(
+        [
+          prefix,
+          stock.brandCode,
+          stock.seriesCode,
+          stock.isoCode,
+          stock.iso,
+          stock.formatCode,
+          stock.format,
+          stock.name,
+          stock.nominalFrames,
+          stock.process,
+          stock.colorType,
+          stock.status,
+          stock.nickname,
+          stock.usualEi,
+          stock.pushPullPref,
+          stock.myRating,
+          stock.myNotes,
+          stock.refPrice,
+        ]
+          .map(esc)
+          .join(','),
+      )
+    }
+
+    reply
+      .type('text/csv; charset=utf-8')
+      .header('Content-Disposition', `attachment; filename="film-stocks-${new Date().toISOString().slice(0, 10)}.csv"`)
+    return '﻿' + lines.join('\r\n')
+  })
+
 }

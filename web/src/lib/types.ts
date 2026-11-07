@@ -96,3 +96,43 @@ export interface ScanResult {
   hint?: string
   error?: string
 }
+
+export interface PendingStock {
+  id: number
+  prefix: string
+  rawCode: string | null
+  barcode: string | null
+  seenCount: number
+  createdAt: string
+}
+
+export interface ImportLine {
+  line: number
+  raw: string
+  ok: boolean
+  error?: string
+  draft?: {
+    brandCode: string
+    brandName: string
+    seriesCode: string
+    seriesName: string
+    iso: number
+    formatCode: string
+    format: string
+    name: string
+    nominalFrames: number | null
+    process: string | null
+    colorType: string | null
+  }
+  suggestedPrefix?: string
+  prefixNote?: string
+  candidates?: string[]
+}
+
+export interface ImportPreview {
+  committed: boolean
+  total: number
+  okCount: number
+  lines: ImportLine[]
+  inserted?: { id: number; prefix: string; name: string }[]
+}
