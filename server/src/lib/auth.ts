@@ -43,11 +43,19 @@ export function checkPin(input: string): boolean {
   return timingSafeEqual(a, b)
 }
 
-export function setSessionCookie(reply: FastifyReply) {
+/**
+ * 签发会话 Cookie。
+ *
+ * secure 按「本次请求实际是不是 HTTPS」决定，而不是简单的 isProd：
+ * 标记为 Secure 的 Cookie 在 http:// 下浏览器不会回传，表现为登录成功但立刻
+ * 401「未登录」。直接用 IP 访问（http://192.168.x.x:3300）就是这种情况。
+ * 走 nginx 时 X-Forwarded-Proto 是 https，仍然会正确带上 Secure。
+ */
+export function setSessionCookie(reply: FastifyReply, secure: boolean) {
   reply.setCookie(config.cookieName, issueSession(), {
     httpOnly: true,
     sameSite: 'lax',
-    secure: config.isProd,
+    secure,
     path: '/',
     maxAge: config.sessionMaxAgeSec,
   })

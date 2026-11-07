@@ -22,9 +22,10 @@ services:
     volumes:
       # SQLite 库、uploads 都在这里；整目录复制即是备份
       - ./storage:/app/storage
-    # 只绑定回环地址：外部只能经 nginx（HTTPS）访问，不能绕过直连 3300
+    # 绑定所有网卡：本机 nginx 与局域网 / 上层反向代理都要能连到。
+    # 若服务器直接暴露在公网，改回 '127.0.0.1:3300:3300' 并让 nginx 只走回环。
     ports:
-      - '127.0.0.1:3300:3300'
+      - '3300:3300'
     networks:
       - web
 

@@ -4,6 +4,12 @@
 
 FROM node:22-bookworm-slim AS build
 
+# better-sqlite3 是原生模块，slim 镜像不带编译器，需要自己装。
+# 这些工具只在构建阶段用，运行镜像仍然是干净的 slim。
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends python3 make g++ \
+ && rm -rf /var/lib/apt/lists/*
+
 RUN corepack enable
 WORKDIR /app
 
@@ -18,8 +24,10 @@ COPY . .
 RUN pnpm --filter @film-vault/web build \
  && pnpm --filter @film-vault/server build
 
-# 只保留生产依赖
-RUN pnpm prune --prod
+# 注意：这里不能执行 pnpm prune --prod。
+# 在无 TTY 的构建环境里，prune 会把顶层 node_modules 的符号链接全部删掉，
+# 依赖只剩在 .pnpm store 里，运行时 import 'better-sqlite3' 会 ERR_MODULE_NOT_FOUND。
+# 个人使用场景下多带一些 dev 依赖换来「构建一次就能跑」是划算的。
 
 FROM node:22-bookworm-slim AS runtime
 

@@ -12,7 +12,8 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     if (!checkPin(parsed.data.pin)) {
       return reply.code(401).send({ error: 'PIN 不正确' })
     }
-    setSessionCookie(reply)
+    // Fastify 在 trustProxy 下会把 X-Forwarded-Proto 反映到 req.protocol
+    setSessionCookie(reply, req.protocol === 'https')
     return { ok: true }
   })
 
