@@ -265,7 +265,19 @@ export const rollRoutes: FastifyPluginAsync = async (app) => {
 
     const reachedFrame = progress.reduce((max, p) => Math.max(max, p.reachedFrame), 0)
 
-    return { ...r, stock, reachedFrame, remaining: Math.max(0, r.framesTotal - reachedFrame), progress }
+    // stock 整个对象给需要细节的调用方（如快速录入）；
+    // 同时把界面上高频用到的 stockName / iso / format 平铺到顶层——
+    // 胶卷表本身没有这三列，前端若直接读 r.iso 会拿到 undefined，标签就渲染成空壳。
+    return {
+      ...r,
+      stock,
+      stockName: stock?.name ?? '',
+      iso: stock?.iso ?? null,
+      format: stock?.format ?? '',
+      reachedFrame,
+      remaining: Math.max(0, r.framesTotal - reachedFrame),
+      progress,
+    }
   })
 
   // 编辑

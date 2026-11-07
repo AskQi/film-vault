@@ -36,8 +36,35 @@ const favorites = computed(() =>
 )
 const prefix = computed(() => selected.value?.prefix ?? '')
 
-/** 该型号已分配到的最大序号，用于提示 */
-const nextHint = ref<{ code: string; seq: number; serialTxt: string } | null>(null)
+interface Suggestion {
+  code: string
+  seq: number
+  serialTxt: string
+  basis: 'empty' | 'stock' | 'counter'
+  rollCount: number
+  unexposedCount: number
+}
+
+/** 推测的下一个编号（按库存推断，可能回填空缺号） */
+const nextHint = ref<Suggestion | null>(null)
+/** 序号框当前装的是不是推测值；点它即清空转手动输入 */
+const serialIsSuggestion = ref(false)
+
+/** 推测依据的说明 */
+const suggestionNote = computed(() => {
+  const s = nextHint.value
+  if (!s) return ''
+  if (s.basis === 'empty') return s.rollCount === 0 && s.seq === 1 && s.unexposedCount === 0 && s.rollCount === 0 ? '该型号尚未建档，从 001 开始' : '从 001 开始'
+  if (s.basis === 'stock') return `库存有空缺号，回填 ${s.serialTxt}（已建档 ${s.rollCount} 卷）`
+  return `接在最大号之后（已建档 ${s.rollCount} 卷）`
+})
+
+/** 点推测值：清空序号，让用户自己输 */
+function clearSuggestion() {
+  if (!serialIsSuggestion.value) return
+  serial.value = ''
+  serialIsSuggestion.value = false
+}
 
 /** 批量预览：从 serial 起按 seq 连续展开 */
 const preview = computed(() => {
@@ -138,26 +165,32 @@ async function refreshNext() {
     return
   }
   try {
-    nextHint.value = await api.get<{ code: string; seq: number; serialTxt: string }>(
-      `/stocks/${stockId.value}/next-serial`,
-    )
-    if (!serial.value) serial.value = nextHint.value.serialTxt
+    nextHint.value = await api.get<Suggestion>(`/stocks/${stockId.value}/next-serial`)
+    if (!serial.value) {
+      serial.value = nextHint.value.serialTxt
+      serialIsSuggestion.value = true
+    }
   } catch {
     nextHint.value = null
+    serialIsSuggestion.value = false
   }
 }
 
 watch(stockId, async () => {
-  // 先清空，refreshNext 会把「下一个可用」直接填进序号框：
-  // 不想要就手动改，想用直接提交，不必再复制粘贴
+  // 先清空，refreshNext 会把推测值填进序号框
   serial.value = ''
+  serialIsSuggestion.value = false
   await refreshNext()
-  if (nextHint.value && !serial.value) serial.value = nextHint.value.serialTxt
   const s = selected.value
   if (s?.defaultFrames) framesTotal.value = s.defaultFrames
   else if (s?.format === '120') framesTotal.value = 12
   else framesTotal.value = 36
 })
+
+/** 用户敲键盘改序号时，标记为手动输入 */
+function onSerialInput() {
+  serialIsSuggestion.value = false
+}
 
 async function submit() {
   if (!stockId.value || !prefix.value) {
@@ -332,8 +365,15 @@ onMounted(loadStocks)
             <input
               v-model="serial"
               maxlength="3"
+              inputmode="text"
               placeholder="001"
-              class="code-text w-28 rounded-xl border border-slate-800 bg-slate-900 px-3 py-3 text-center text-lg outline-none focus:border-amber-500"
+              class="code-text w-28 rounded-xl border bg-slate-900 px-3 py-3 text-center text-lg outline-none focus:border-amber-500"
+              :class="
+                serialIsSuggestion
+                  ? 'border-amber-600/60 text-amber-300'
+                  : 'border-slate-800 text-slate-100'
+              "
+              @input="onSerialInput"
             />
             <button
               class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-800 text-xl active:bg-slate-700"
@@ -343,6 +383,24 @@ onMounted(loadStocks)
               ⌗
             </button>
           </div>
+
+          <!-- 推测的序号：点一下即清空，改为手动输入 -->
+          <div v-if="nextHint" class="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
+            <button
+              class="code-text rounded-lg border px-2 py-1 transition-colors"
+              :class="
+                serialIsSuggestion
+                  ? 'border-amber-600/60 bg-amber-500/10 text-amber-300'
+                  : 'border-slate-700 bg-slate-800 text-slate-400'
+              "
+              :title="serialIsSuggestion ? '点一下清空，改为手动输入' : '重新填入推测序号'"
+              @click="serialIsSuggestion ? clearSuggestion() : ((serial = nextHint.serialTxt), (serialIsSuggestion = true))"
+            >
+              {{ serialIsSuggestion ? '清空' : '用推测值' }} · {{ nextHint.serialTxt }}
+            </button>
+            <span class="text-slate-500">{{ suggestionNote }}</span>
+          </div>
+
           <p class="mt-1.5 text-xs text-slate-500">
             {{
               mode === 'batch'

@@ -19,6 +19,18 @@ body {
   overscroll-behavior-y: none;
 }
 
+/*
+ * iOS Safari 在聚焦字号小于 16px 的 input/select/textarea 时会自动放大页面，
+ * 且不会自动缩回。把表单控件统一提到 16px 是唯一可靠的做法
+ * （maximum-scale=1 会禁用双指缩放，损害可访问性，不采用）。
+ * 注意要覆盖到 text-xs / text-sm 这类 Tailwind 类。
+ */
+input,
+select,
+textarea {
+  font-size: max(16px, 1em);
+}
+
 /* 编码等宽显示：标签与编号到处都要用 */
 .code-text {
   @apply font-mono tracking-wider;

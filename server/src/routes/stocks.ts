@@ -338,6 +338,7 @@ export const stocksRoutes: FastifyPluginAsync = async (app) => {
     if (!primary) return reply.code(404).send({ error: '该型号没有主前缀' })
 
     try {
+      // 推测值：按实际库存推断（会回填空缺号），另附 seq_max 供参考
       const next = peekNext(db, primary.prefix)
       return { prefix: primary.prefix, ...next }
     } catch (e) {
