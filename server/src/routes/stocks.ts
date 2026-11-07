@@ -295,6 +295,23 @@ export const stocksRoutes: FastifyPluginAsync = async (app) => {
     return updated
   })
 
+  // 收藏 / 取消收藏。收藏时写入当前时间（建档时也会自动刷新这个时间）
+  app.put('/:id/favorite', async (req, reply) => {
+    const id = Number((req.params as { id: string }).id)
+    const { favorite } = z.object({ favorite: z.boolean() }).parse(req.body)
+    const db = app.db
+    const stock = db
+      .select()
+      .from(filmStock)
+      .where(and(eq(filmStock.id, id), isNull(filmStock.deletedAt)))
+      .get()
+    if (!stock) return reply.code(404).send({ error: '型号不存在' })
+
+    const favoritedAt = favorite ? new Date().toISOString() : null
+    db.update(filmStock).set({ favoritedAt }).where(eq(filmStock.id, id)).run()
+    return { id, favoritedAt }
+  })
+
   // 软删除
   app.delete('/:id', async (req, reply) => {
     const id = Number((req.params as { id: string }).id)

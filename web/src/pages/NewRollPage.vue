@@ -25,6 +25,13 @@ const copied = ref(false)
 const scannedRaw = ref<string | null>(null)
 
 const selected = computed(() => stocks.value.find((s) => s.id === stockId.value) ?? null)
+
+/** 收藏的型号：最近收藏 / 最近建档的在前 */
+const favorites = computed(() =>
+  stocks.value
+    .filter((s) => s.favoritedAt)
+    .sort((a, b) => (b.favoritedAt ?? '').localeCompare(a.favoritedAt ?? '')),
+)
 const prefix = computed(() => selected.value?.prefix ?? '')
 
 /** 该型号已分配到的最大序号，用于提示 */
@@ -209,6 +216,8 @@ function restart() {
   created.value = []
   serial.value = ''
   void refreshNext()
+  // 建档会自动收藏该型号，重新拉列表让收藏分组同步
+  void api.get<{ items: Stock[] }>('/stocks').then((r) => (stocks.value = r.items))
 }
 
 onMounted(loadStocks)
@@ -268,9 +277,17 @@ onMounted(loadStocks)
           class="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-3 text-sm outline-none focus:border-amber-500"
         >
           <option :value="null">选择型号</option>
-          <option v-for="s in stocks" :key="s.id" :value="s.id">
-            {{ s.prefix }} · {{ s.name }}
-          </option>
+          <!-- 收藏置顶；下面的完整列表里同样保留，便于按品牌顺序找 -->
+          <optgroup v-if="favorites.length" label="★ 收藏">
+            <option v-for="s in favorites" :key="`fav-${s.id}`" :value="s.id">
+              ★ {{ s.prefix }} · {{ s.name }}
+            </option>
+          </optgroup>
+          <optgroup label="全部型号">
+            <option v-for="s in stocks" :key="s.id" :value="s.id">
+              {{ s.favoritedAt ? '★ ' : '' }}{{ s.prefix }} · {{ s.name }}
+            </option>
+          </optgroup>
         </select>
         <p v-if="nextHint" class="mt-1.5 text-xs text-slate-500">
           下一个可用：<span class="code-text text-amber-400">{{ nextHint.code }}</span>

@@ -78,6 +78,18 @@ async function removeBarcode(barcode: string) {
   await load()
 }
 
+async function toggleFavorite() {
+  if (!detail.value) return
+  try {
+    const res = await api.put<{ favoritedAt: string | null }>(`/stocks/${detail.value.id}/favorite`, {
+      favorite: !detail.value.favoritedAt,
+    })
+    detail.value.favoritedAt = res.favoritedAt
+  } catch (e) {
+    error.value = (e as Error).message
+  }
+}
+
 onMounted(load)
 </script>
 
@@ -92,7 +104,17 @@ onMounted(load)
 
     <template v-else-if="detail">
       <header class="mb-6">
-        <div class="code-text text-3xl text-amber-400">{{ primaryPrefix ?? '—' }}</div>
+        <div class="flex items-center justify-between gap-3">
+          <div class="code-text text-3xl text-amber-400">{{ primaryPrefix ?? '—' }}</div>
+          <button
+            class="rounded-xl border px-3 py-2 text-sm"
+            :class="detail.favoritedAt ? 'border-amber-500 bg-amber-500/15 text-amber-300' : 'border-slate-700 text-slate-400'"
+            :aria-pressed="!!detail.favoritedAt"
+            @click="toggleFavorite"
+          >
+            {{ detail.favoritedAt ? '★ 已收藏' : '☆ 收藏' }}
+          </button>
+        </div>
         <h1 class="mt-2 text-xl font-semibold">{{ detail.name }}</h1>
         <div class="mt-2 flex flex-wrap gap-2 text-xs">
           <span class="rounded-full bg-slate-800 px-2.5 py-1">ISO {{ detail.iso }}</span>

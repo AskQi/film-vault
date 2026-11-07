@@ -39,6 +39,8 @@ export interface Stock {
   myRating: number | null
   myNotes: string | null
   refPrice: number | null
+  /** 收藏时间，空 = 未收藏 */
+  favoritedAt: string | null
   prefix?: string | null
   rollCount?: number
   activeCount?: number
@@ -94,7 +96,7 @@ export interface ScanResult {
   prefix?: string
   seq?: number
   serialTxt?: string
-  stock?: { id: number; name: string } | null
+  stock?: { id: number; name: string; framesTotal?: number | null } | null
   existing?: { id: number; status: string; framesTotal: number } | null
   known?: boolean
   hint?: string

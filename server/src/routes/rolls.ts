@@ -154,6 +154,9 @@ export const rollRoutes: FastifyPluginAsync = async (app) => {
         tx.update(stockPrefix).set({ seqMax: parsed.seq }).where(eq(stockPrefix.prefix, parsed.prefix)).run()
       }
 
+      // 建档即收藏：刷新收藏时间，让常用型号在建档页排在最前
+      tx.update(filmStock).set({ favoritedAt: now }).where(eq(filmStock.id, stock.id)).run()
+
       return r
     })
 
@@ -178,6 +181,9 @@ export const rollRoutes: FastifyPluginAsync = async (app) => {
 
     try {
       const result = db.transaction((tx) => {
+        // 建档即收藏（同单卷建档）
+        tx.update(filmStock).set({ favoritedAt: now }).where(eq(filmStock.id, stock.id)).run()
+
         const allocated = allocateSeq(tx, {
           prefix: input.prefix,
           startSeq: input.startSeq,

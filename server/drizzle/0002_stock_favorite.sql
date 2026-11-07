@@ -1,0 +1,1 @@
+ALTER TABLE `film_stock` ADD `favorited_at` text;

@@ -33,6 +33,9 @@ const looking = ref(false)
 const lookupError = ref<string | null>(null)
 /** 编号合法但没有建档 */
 const notFoundCode = ref<string | null>(null)
+/** 未建档编号的型号（前缀已在型号库）；为空表示前缀未知，只能去型号库补齐 */
+const notFoundStock = ref<{ id: number; name: string; framesTotal: number | null } | null>(null)
+const creating = ref(false)
 const rollInfo = ref<RollInfo | null>(null)
 
 const action = ref<'load' | 'progress'>('progress')
@@ -67,6 +70,7 @@ async function lookup(raw: string) {
   looking.value = true
   lookupError.value = null
   notFoundCode.value = null
+  notFoundStock.value = null
   rollInfo.value = null
   savedHint.value = null
 
@@ -79,6 +83,10 @@ async function lookup(raw: string) {
       resetForm()
     } else if (res.kind === 'roll' || res.kind === 'unknown_prefix') {
       notFoundCode.value = res.code ?? text
+      notFoundStock.value =
+        res.kind === 'roll' && res.stock
+          ? { id: res.stock.id, name: res.stock.name, framesTotal: res.stock.framesTotal ?? null }
+          : null
     } else if (res.kind === 'barcode') {
       lookupError.value = '这是包装盒条码。在拍页请输入或扫胶卷上的 7 位编号'
     }
@@ -111,6 +119,25 @@ function onScanned(raw: string) {
   scannerOpen.value = false
   codeInput.value = raw.trim()
   void lookup(raw)
+}
+
+/** 首页扫到未建档的卷：就地单卷建档（服务端会顺带收藏该型号），然后直接进入录入 */
+async function createHere() {
+  const code = notFoundCode.value
+  if (!code || !notFoundStock.value) return
+  creating.value = true
+  lookupError.value = null
+  try {
+    await api.post('/rolls', {
+      code,
+      framesTotal: notFoundStock.value.framesTotal ?? undefined,
+    })
+    await lookup(code)
+  } catch (e) {
+    lookupError.value = (e as Error).message
+  } finally {
+    creating.value = false
+  }
 }
 
 function reset() {
@@ -204,15 +231,35 @@ watch(rollInfo, async (r) => {
     </p>
     <p v-if="lookupError" class="mt-3 text-sm text-red-400">{{ lookupError }}</p>
 
-    <!-- 未建档 -->
+    <!-- 未建档：前缀已知 → 就地建档；前缀未知 → 去型号库补齐 -->
     <div v-if="notFoundCode" class="mt-3 rounded-xl border border-amber-900/60 bg-amber-950/20 p-3 text-sm">
       <p class="text-amber-300"><span class="code-text">{{ notFoundCode }}</span> 还没有建档</p>
-      <button
-        class="mt-2 rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-slate-950"
-        @click="router.push({ name: 'new-roll', query: { prefix: notFoundCode.slice(0, 4), serial: notFoundCode.slice(4) } })"
-      >
-        去建档
-      </button>
+      <template v-if="notFoundStock">
+        <p class="mt-1 text-xs text-slate-400">
+          {{ notFoundStock.name }}<span v-if="notFoundStock.framesTotal"> · {{ notFoundStock.framesTotal }} 张</span>
+        </p>
+        <div class="mt-2 flex gap-2">
+          <button
+            class="rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-slate-950 disabled:opacity-40"
+            :disabled="creating"
+            @click="createHere"
+          >
+            {{ creating ? '建档中…' : '建档并继续' }}
+          </button>
+          <button
+            class="rounded-lg bg-slate-800 px-4 py-2 text-sm"
+            @click="router.push({ name: 'new-roll', query: { prefix: notFoundCode.slice(0, 4), serial: notFoundCode.slice(4) } })"
+          >
+            去建档页
+          </button>
+        </div>
+      </template>
+      <template v-else>
+        <p class="mt-1 text-xs text-slate-400">前缀 {{ notFoundCode.slice(0, 4) }} 不在型号库里，已记为待认领</p>
+        <button class="mt-2 rounded-lg bg-slate-800 px-4 py-2 text-sm" @click="router.push('/stocks')">
+          去型号库补齐
+        </button>
+      </template>
     </div>
 
     <!-- 已识别：卷信息 + 录入表单 -->

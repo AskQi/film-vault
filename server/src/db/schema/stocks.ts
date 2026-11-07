@@ -33,6 +33,11 @@ export const filmStock = sqliteTable(
     myRating: integer('my_rating'),
     myNotes: text('my_notes'),
     refPrice: real('ref_price'),
+    /**
+     * 收藏时间，空 = 未收藏。手动收藏或每次建档时写入当前时间，
+     * 建档页按它倒序把常用型号排在最前。
+     */
+    favoritedAt: text('favorited_at'),
 
     // ── 元数据 ────────────────────────────────────
     createdAt: text('created_at').notNull(),

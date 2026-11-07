@@ -9,6 +9,8 @@ const stocks = ref<Stock[]>([])
 const prefixMap = ref<PrefixMapResponse | null>(null)
 const keyword = ref('')
 const brandFilter = ref('')
+/** 只看收藏 */
+const favOnly = ref(false)
 const loading = ref(true)
 const error = ref<string | null>(null)
 const tab = ref<'list' | 'map' | 'import'>('list')
@@ -30,6 +32,7 @@ const filtered = computed(() => {
   const kw = keyword.value.trim().toLowerCase()
   return stocks.value.filter((s) => {
     if (brandFilter.value && s.brandCode !== brandFilter.value) return false
+    if (favOnly.value && !s.favoritedAt) return false
     if (!kw) return true
     return (
       s.name.toLowerCase().includes(kw) ||
@@ -125,6 +128,23 @@ async function ignorePending(prefix: string) {
   await load()
 }
 
+/** 切换收藏。先改本地状态再请求，失败时回滚 */
+async function toggleFavorite(stock: Stock) {
+  const before = stock.favoritedAt
+  stock.favoritedAt = before ? null : new Date().toISOString()
+  try {
+    const res = await api.put<{ favoritedAt: string | null }>(`/stocks/${stock.id}/favorite`, {
+      favorite: !before,
+    })
+    stock.favoritedAt = res.favoritedAt
+  } catch (e) {
+    stock.favoritedAt = before
+    error.value = (e as Error).message
+  }
+}
+
+const favCount = computed(() => stocks.value.filter((s) => s.favoritedAt).length)
+
 onMounted(load)
 </script>
 
@@ -191,6 +211,14 @@ onMounted(load)
           <option value="">全部品牌</option>
           <option v-for="b in BRANDS" :key="b.code" :value="b.code">{{ b.name }}</option>
         </select>
+        <button
+          class="shrink-0 rounded-xl border px-3 py-3 text-sm"
+          :class="favOnly ? 'border-amber-500 bg-amber-500/15 text-amber-300' : 'border-slate-800 bg-slate-900 text-slate-400'"
+          :aria-pressed="favOnly"
+          @click="favOnly = !favOnly"
+        >
+          ★ {{ favCount }}
+        </button>
       </div>
 
       <div v-if="loading" class="py-16 text-center text-slate-500">加载中…</div>
@@ -199,11 +227,23 @@ onMounted(load)
         <section v-for="group in grouped" :key="group.code">
           <h2 class="mb-2 text-sm font-medium text-slate-400">{{ group.name }}</h2>
           <div class="grid gap-2 md:grid-cols-2">
-            <RouterLink
+            <div
               v-for="s in group.items"
               :key="s.id"
+              class="flex items-stretch rounded-xl border border-slate-800 bg-slate-900"
+            >
+            <button
+              class="flex w-12 shrink-0 items-center justify-center text-xl"
+              :class="s.favoritedAt ? 'text-amber-400' : 'text-slate-700'"
+              :aria-label="s.favoritedAt ? `取消收藏 ${s.name}` : `收藏 ${s.name}`"
+              :aria-pressed="!!s.favoritedAt"
+              @click="toggleFavorite(s)"
+            >
+              {{ s.favoritedAt ? '★' : '☆' }}
+            </button>
+            <RouterLink
               :to="`/stocks/${s.id}`"
-              class="flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900 px-4 py-3"
+              class="flex min-w-0 flex-1 items-center justify-between gap-3 py-3 pr-4"
             >
               <div class="min-w-0">
                 <div class="flex items-baseline gap-2">
@@ -220,6 +260,7 @@ onMounted(load)
                 <div v-if="s.activeCount">{{ s.activeCount }} 在拍</div>
               </div>
             </RouterLink>
+            </div>
           </div>
         </section>
       </div>
