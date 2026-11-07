@@ -12,7 +12,7 @@ const stocks = ref<Stock[]>([])
 const stockId = ref<number | null>(null)
 const mode = ref<'single' | 'batch'>('single')
 const serial = ref('')
-const count = ref(5)
+const count = ref(3)
 const framesTotal = ref(36)
 const error = ref<string | null>(null)
 /** 批量建档撞号时服务端返回的重复编号 */
@@ -336,16 +336,19 @@ onMounted(loadStocks)
               class="code-text w-28 rounded-xl border border-slate-800 bg-slate-900 px-3 py-3 text-center text-lg outline-none focus:border-amber-500"
             />
             <button
-              v-if="mode === 'single'"
               class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-800 text-xl active:bg-slate-700"
-              title="扫编号或包装条码"
+              :title="mode === 'batch' ? '扫第一张，作为起始编号' : '扫编号或包装条码'"
               @click="scannerOpen = true"
             >
               ⌗
             </button>
           </div>
-          <p v-if="mode === 'single'" class="mt-1.5 text-xs text-slate-500">
-            扫编号自动定位型号与序号，扫包装条码自动定位型号
+          <p class="mt-1.5 text-xs text-slate-500">
+            {{
+              mode === 'batch'
+                ? '扫第一张的编号作为起始，其余按数量往后顺延'
+                : '扫编号自动定位型号与序号，扫包装条码自动定位型号'
+            }}
           </p>
         </div>
 
