@@ -5,6 +5,7 @@ import { useRoute } from 'vue-router'
 import { api } from '../lib/api.js'
 import type { Stock, StockPrefix, RollListItem } from '../lib/types.js'
 import { COLOR_TYPE_LABEL, STOCK_STATUS_LABEL, type ColorType } from '@film-vault/shared/client'
+import ScanSheet from '../components/ScanSheet.vue'
 
 interface Detail extends Stock {
   prefixes: StockPrefix[]
@@ -18,6 +19,7 @@ const detail = ref<Detail | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
 const barcodeInput = ref('')
+const scannerOpen = ref(false)
 const savingPersonal = ref(false)
 const personalDraft = ref({ nickname: '', myNotes: '', myRating: 0, refPrice: '' })
 
@@ -71,6 +73,18 @@ async function bindBarcode() {
   } catch (e) {
     error.value = (e as Error).message
   }
+}
+
+/** 扫到包装条码直接绑定，省去手输 */
+async function onBarcodeScanned(raw: string) {
+  scannerOpen.value = false
+  const barcode = raw.trim().replace(/\s/g, '')
+  barcodeInput.value = barcode
+  if (!/^\d{6,14}$/.test(barcode)) {
+    error.value = `这不是包装条码（${barcode}），包装盒上一般是 8-13 位数字`
+    return
+  }
+  await bindBarcode()
 }
 
 async function removeBarcode(barcode: string) {
@@ -217,8 +231,16 @@ onMounted(load)
             placeholder="扫描或输入 EAN/UPC"
             class="min-w-0 flex-1 rounded-xl border border-slate-800 bg-slate-950 px-3 py-2.5 text-sm outline-none focus:border-amber-500"
           />
+          <button
+            class="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-xl bg-slate-800 text-lg active:bg-slate-700"
+            title="扫包装盒条码"
+            @click="scannerOpen = true"
+          >
+            ⌗
+          </button>
           <button class="rounded-xl bg-slate-800 px-4 py-2.5 text-sm" @click="bindBarcode">绑定</button>
         </div>
+        <p class="mb-2 text-xs text-slate-500">点 ⌗ 扫包装盒上的条码，可连续扫码绑定多个</p>
         <div v-if="detail.barcodes.length === 0" class="text-sm text-slate-600">尚未绑定</div>
         <div v-else class="space-y-2">
           <div
@@ -235,6 +257,8 @@ onMounted(load)
       <p v-if="detail.description" class="mb-6 rounded-2xl bg-slate-900 p-4 text-sm text-slate-400">
         {{ detail.description }}
       </p>
+
+      <ScanSheet :open="scannerOpen" @close="scannerOpen = false" @scanned="onBarcodeScanned" />
     </template>
   </div>
 </template>
