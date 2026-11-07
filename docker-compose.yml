@@ -1,0 +1,46 @@
+services:
+  app:
+    build: .
+    image: film-vault:latest
+    restart: unless-stopped
+    environment:
+      # 生产环境必须改掉默认值，且长度建议 6 位以上
+      PIN: ${PIN:?请在 .env 中设置 PIN}
+      # 固定会话签名密钥，否则每次重启都会让所有设备掉登录
+      SESSION_SECRET: ${SESSION_SECRET:?请在 .env 中设置 SESSION_SECRET}
+      DATA_DIR: /app/storage
+      TZ: Asia/Shanghai
+    volumes:
+      # SQLite 库、uploads、备份都在这里；整目录复制即是备份
+      - ./storage:/app/storage
+    # 不直接对公网暴露端口，只让 caddy 访问
+    expose:
+      - '3300'
+    networks:
+      - web
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
+    environment:
+      # 域名由 Caddyfile 引用，例如 film.example.com
+      SITE_ADDRESS: ${SITE_ADDRESS:?请在 .env 中设置 SITE_ADDRESS，如 film.example.com}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+    networks:
+      - web
+
+volumes:
+  caddy_data:
+  caddy_config:
+
+networks:
+  web:

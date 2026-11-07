@@ -21,10 +21,76 @@
 - 数据库：SQLite（WAL）
 - 部署：Docker Compose + Caddy（自动 HTTPS）
 
+## 快速开始
+
+```bash
+# 1. 装依赖（需要 pnpm 10+）
+pnpm install
+
+# 2. 建库并写入码表与型号库（139 条）
+pnpm db:seed
+
+# 3. 同时启动前后端
+pnpm dev
+# 前端 http://localhost:5173   后端 http://localhost:3300
+```
+
+默认 PIN 为 `1234`，生产环境必须通过环境变量覆盖（见 `.env.example`）。
+
+### 常用命令
+
+| 命令 | 说明 |
+|---|---|
+| `pnpm dev` | 前后端并行启动（Vite 把 `/api` 代理到 Fastify） |
+| `pnpm build` | 构建前端与服务端 |
+| `pnpm test` | 跑编号解析单测 |
+| `pnpm typecheck` | 三个包的类型检查 |
+| `pnpm db:seed` | 应用迁移 + 码表 + 型号库（幂等） |
+
+### 独立运行服务端（生产形态）
+
+```bash
+pnpm --filter @film-vault/web build     # 前端产物在 web/dist
+pnpm --filter @film-vault/server build  # 服务端产物在 server/dist
+node server/dist/index.js               # 单进程同时提供 API 与页面
+```
+
+## 部署
+
+```bash
+cp .env.example .env    # 填 PIN、SESSION_SECRET、SITE_ADDRESS
+docker compose up -d
+```
+
+HTTPS 是硬约束：没有 HTTPS，手机浏览器不允许调用摄像头，扫码功能不可用。Caddy 自动签发证书。
+
+## 目录结构
+
+```
+docs/      需求、方案、规划
+data/      型号库 seed 数据（film-stocks.tsv，139 条，进版本库）
+shared/    Zod schema、码表常量、编号解析（前后端共用）
+server/    Fastify 服务端 + Drizzle + 迁移
+web/       Vue 3 PWA
+scripts/   打包、标签模板
+storage/   运行时数据（SQLite、附件）——不进版本库
+```
+
+## 编号速记
+
+```
+K G 2 T 001     → Kodak · Gold · ISO200 · 135 · 第 1 卷   （恒 7 字符）
+│ │ │ │ └─ 序号：001-999 → A00-Z99 → a00-z99，000 保留
+│ │ │ └─── 画幅：T=135 M=120 D=220 S=页片 P=110 X=其他
+│ │ └───── ISO 码：v=ISO/100，1-9 数字，10-35 用 A-Z
+│ │         例外（小写）：a=25 b=50 c=64 d=160 e=320 f=125 g=80 h=250
+│ └─────── 系列（品牌内唯一）
+└───────── 品牌
+```
+
+**不能全局转大小写**：`KPdT`（ISO 160）≠ `KPDT`（ISO 1300），`A07`（seq 1007）≠ `a07`（seq 3607）。
+
 ## 状态
 
-🚧 尚未开始编码，当前处于 M0 前。
-
-## 开发
-
-> M0 完成后补充。
+M0 工程骨架已完成：monorepo、数据模型与迁移、码表与型号库导入、PIN 登录、编号解析与单测、基础页面、Docker 骨架。
+下一步 M1（编号体系完善、字母占用表的写入侧、待认领消化）。

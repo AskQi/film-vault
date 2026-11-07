@@ -1,0 +1,39 @@
+@import 'tailwindcss';
+
+/* 移动优先：单列大卡片，md 以上双列 */
+@theme {
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei',
+    'Noto Sans SC', system-ui, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, Consolas, monospace;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  @apply bg-slate-950 text-slate-100 antialiased;
+  /* 折叠屏与刘海屏 */
+  overscroll-behavior-y: none;
+}
+
+/* 编码等宽显示：标签与编号到处都要用 */
+.code-text {
+  @apply font-mono tracking-wider;
+}
+
+/* 打印标签时只保留标签区域 */
+@media print {
+  @page {
+    margin: 6mm;
+  }
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+}

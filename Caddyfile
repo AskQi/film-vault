@@ -1,0 +1,29 @@
+# Caddy 自动 HTTPS。
+#
+# 浏览器调用摄像头要求安全上下文，因此生产必须是 HTTPS —— 这是硬约束，
+# 不是"最好有"。Caddy 会自动申请并续期证书，无需手工配置。
+
+{$SITE_ADDRESS} {
+	encode zstd gzip
+
+	# 反向代理到 app 容器（compose 内部网络中的服务名）
+	reverse_proxy app:3300 {
+		# 上传附件时放宽请求体上限
+		transport http {
+			read_timeout 60s
+		}
+	}
+
+	header {
+		# 单用户私用站点，不索引
+		X-Robots-Tag "noindex, nofollow"
+		Referrer-Policy "no-referrer"
+		X-Content-Type-Options "nosniff"
+		-Server
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}

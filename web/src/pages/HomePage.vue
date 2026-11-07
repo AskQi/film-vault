@@ -1,0 +1,60 @@
+<script setup lang="ts">
+/**
+ * 首页：在拍的胶卷。
+ * M3 之前这里是空态引导；数据就绪后展示进度卡片。
+ */
+import { onMounted, ref } from 'vue'
+import { api } from '../lib/api.js'
+import type { RollListItem } from '../lib/types.js'
+import RollCard from '../components/RollCard.vue'
+
+const rolls = ref<RollListItem[]>([])
+const loading = ref(true)
+const error = ref<string | null>(null)
+
+async function load() {
+  loading.value = true
+  error.value = null
+  try {
+    const res = await api.get<{ items: RollListItem[] }>('/rolls?status=loaded,partial')
+    rolls.value = res.items
+  } catch (e) {
+    error.value = (e as Error).message
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(load)
+</script>
+
+<template>
+  <div class="mx-auto max-w-3xl px-4 pt-6">
+    <header class="mb-6">
+      <h1 class="text-2xl font-semibold">在拍</h1>
+      <p class="mt-1 text-sm text-slate-400">记录拍到第几张，两秒完成</p>
+    </header>
+
+    <div v-if="loading" class="py-16 text-center text-slate-500">加载中…</div>
+
+    <div v-else-if="error" class="rounded-2xl border border-red-900 bg-red-950/40 p-4 text-sm text-red-300">
+      {{ error }}
+      <button class="ml-2 underline" @click="load">重试</button>
+    </div>
+
+    <div v-else-if="rolls.length === 0" class="rounded-3xl border border-dashed border-slate-800 p-10 text-center">
+      <div class="mb-3 text-4xl">◎</div>
+      <p class="text-slate-300">还没有在拍的胶卷</p>
+      <RouterLink
+        to="/new"
+        class="mt-6 inline-block rounded-xl bg-amber-500 px-6 py-3 font-medium text-slate-950"
+      >
+        建档一卷
+      </RouterLink>
+    </div>
+
+    <div v-else class="space-y-3">
+      <RollCard v-for="roll in rolls" :key="roll.id" :roll="roll" @updated="load" />
+    </div>
+  </div>
+</template>

@@ -1,0 +1,185 @@
+# 胶卷型号库 seed 数据
+#
+# 格式：TSV，首行为列名，# 开头为注释
+# 说明：
+#   1. 本文件是"客观层"数据，导入时只覆盖 prefix/brand/series/iso/format/name/process 等
+#      客观字段，个人层字段（昵称、常用 EI、评价、注意事项）永不被覆盖。
+#   2. nominal_frames 留空表示"由规格决定"：
+#        - 120 / 220 / 页片：张数由片盒或背纸决定，建档时按实际填写
+#        - 135：一般 36 张，少数 24 张
+#   3. barcode 留空：条码无法凭记忆可靠填写，需用户扫包装盒后绑定。
+#   4. prefix 固定 4 位 = 品牌 + 系列 + ISO码 + 画幅码，冲突时换系列字母，不升位。
+#   5. status: active=在产 / discontinued=停产 / cinema=电影卷需分装
+#
+prefix	brand_code	brand_name	series_code	series_name	iso	format_code	format	name	nominal_frames	process	color_type	status	notes
+
+# ── Kodak 柯达 ──────────────────────────────────────────────
+KG1T	K	Kodak	G	Gold	100	T	135	Kodak Gold 100	36	C-41	color_negative	active	
+KG2T	K	Kodak	G	Gold	200	T	135	Kodak Gold 200	36	C-41	color_negative	active	
+KG2M	K	Kodak	G	Gold	200	M	120	Kodak Gold 200 120		C-41	color_negative	active	
+KG4T	K	Kodak	G	Gold	400	T	135	Kodak Gold 400	36	C-41	color_negative	active	
+KC2T	K	Kodak	C	ColorPlus	200	T	135	Kodak ColorPlus 200	36	C-41	color_negative	active	
+KU4T	K	Kodak	U	Ultramax	400	T	135	Kodak Ultramax 400	36	C-41	color_negative	active	
+KI1T	K	Kodak	I	Pro Image	100	T	135	Kodak Pro Image 100	36	C-41	color_negative	active	
+KE1T	K	Kodak	E	Ektar	100	T	135	Kodak Ektar 100	36	C-41	color_negative	active	
+KE1M	K	Kodak	E	Ektar	100	M	120	Kodak Ektar 100 120		C-41	color_negative	active	
+KX1T	K	Kodak	X	Ektachrome	100	T	135	Kodak Ektachrome E100	36	E-6	color_positive	active	
+KX1M	K	Kodak	X	Ektachrome	100	M	120	Kodak Ektachrome E100 120		E-6	color_positive	active	
+KPdT	K	Kodak	P	Portra	160	T	135	Kodak Portra 160	36	C-41	color_negative	active	ISO 160 例外码 d
+KPdM	K	Kodak	P	Portra	160	M	120	Kodak Portra 160 120		C-41	color_negative	active	
+KP4T	K	Kodak	P	Portra	400	T	135	Kodak Portra 400	36	C-41	color_negative	active	
+KP4M	K	Kodak	P	Portra	400	M	120	Kodak Portra 400 120		C-41	color_negative	active	
+KP4D	K	Kodak	P	Portra	400	D	220	Kodak Portra 400 220		C-41	color_negative	active	220 格式
+KP8T	K	Kodak	P	Portra	800	T	135	Kodak Portra 800	36	C-41	color_negative	active	
+KP8M	K	Kodak	P	Portra	800	M	120	Kodak Portra 800 120		C-41	color_negative	active	
+KT4T	K	Kodak	T	Tri-X	400	T	135	Kodak Tri-X 400	36	BW	bw	active	
+KT4M	K	Kodak	T	Tri-X	400	M	120	Kodak Tri-X 400 120		BW	bw	active	
+KM1T	K	Kodak	M	T-Max	100	T	135	Kodak T-Max 100	36	BW	bw	active	
+KM1M	K	Kodak	M	T-Max	100	M	120	Kodak T-Max 100 120		BW	bw	active	
+KM4T	K	Kodak	M	T-Max	400	T	135	Kodak T-Max 400	36	BW	bw	active	
+KM4M	K	Kodak	M	T-Max	400	M	120	Kodak T-Max 400 120		BW	bw	active	
+KMWT	K	Kodak	M	T-Max P3200	3200	T	135	Kodak T-Max P3200	36	BW	bw	active	ISO 3200 码 W
+KV2T	K	Kodak	V	Vision3	200	T	135	Kodak Vision3 200T	36	ECN-2	color_negative	cinema	电影卷，需分装
+KVhT	K	Kodak	V	Vision3	250	T	135	Kodak Vision3 250D	36	ECN-2	color_negative	cinema	ISO 250 例外码 h
+KV5T	K	Kodak	V	Vision3	500	T	135	Kodak Vision3 500T	36	ECN-2	color_negative	cinema	电影卷，需分装
+
+# ── Fujifilm 富士 ───────────────────────────────────────────
+FC2T	F	Fujifilm	C	C200	200	T	135	Fujifilm C200	36	C-41	color_negative	active	
+FS4T	F	Fujifilm	S	Superia	400	T	135	Fujifilm Superia X-TRA 400	36	C-41	color_negative	active	
+FP4T	F	Fujifilm	P	Superia Premium	400	T	135	Fujifilm Superia Premium 400	36	C-41	color_negative	active	
+FJ1T	F	Fujifilm	J	Fujicolor	100	T	135	Fujifilm Fujicolor 100	36	C-41	color_negative	active	日本国内版
+FH4T	F	Fujifilm	H	Pro 400H	400	T	135	Fujifilm Pro 400H	36	C-41	color_negative	discontinued	
+FH4M	F	Fujifilm	H	Pro 400H	400	M	120	Fujifilm Pro 400H 120		C-41	color_negative	discontinued	
+FNdM	F	Fujifilm	N	Pro 160NS	160	M	120	Fujifilm Pro 160NS 120		C-41	color_negative	discontinued	
+FDdT	F	Fujifilm	D	Pro 160C	160	T	135	Fujifilm Pro 160C	36	C-41	color_negative	discontinued	
+FVbT	F	Fujifilm	V	Velvia	50	T	135	Fujifilm Velvia 50	36	E-6	color_positive	active	
+FVbM	F	Fujifilm	V	Velvia	50	M	120	Fujifilm Velvia 50 120		E-6	color_positive	active	
+FVbS	F	Fujifilm	V	Velvia	50	S	4x5	Fujifilm Velvia 50 4x5		E-6	color_positive	active	
+FV1T	F	Fujifilm	V	Velvia	100	T	135	Fujifilm Velvia 100	36	E-6	color_positive	active	
+FV1M	F	Fujifilm	V	Velvia	100	M	120	Fujifilm Velvia 100 120		E-6	color_positive	active	
+FY1T	F	Fujifilm	Y	Velvia 100F	100	T	135	Fujifilm Velvia 100F	36	E-6	color_positive	discontinued	
+FR1T	F	Fujifilm	R	Provia	100	T	135	Fujifilm Provia 100F	36	E-6	color_positive	active	
+FR1M	F	Fujifilm	R	Provia	100	M	120	Fujifilm Provia 100F 120		E-6	color_positive	active	
+FR1S	F	Fujifilm	R	Provia	100	S	4x5	Fujifilm Provia 100F 4x5		E-6	color_positive	active	
+FR4T	F	Fujifilm	R	Provia	400	T	135	Fujifilm Provia 400X	36	E-6	color_positive	discontinued	
+FA1T	F	Fujifilm	A	Astia	100	T	135	Fujifilm Astia 100F	36	E-6	color_positive	discontinued	
+FO1T	F	Fujifilm	O	Acros	100	T	135	Fujifilm Acros 100 II	36	BW	bw	active	
+FO1M	F	Fujifilm	O	Acros	100	M	120	Fujifilm Acros 100 II 120		BW	bw	active	
+FE4T	F	Fujifilm	E	Neopan	400	T	135	Fujifilm Neopan 400	36	BW	bw	discontinued	
+FEGT	F	Fujifilm	E	Neopan	1600	T	135	Fujifilm Neopan 1600	36	BW	bw	discontinued	
+FTGT	F	Fujifilm	T	Natura	1600	T	135	Fujifilm Natura 1600	36	C-41	color_negative	discontinued	日本国内版
+
+# ── Ilford 依尔福 ───────────────────────────────────────────
+IH4T	I	Ilford	H	HP5 Plus	400	T	135	Ilford HP5 Plus 400	36	BW	bw	active	
+IH4M	I	Ilford	H	HP5 Plus	400	M	120	Ilford HP5 Plus 400 120		BW	bw	active	
+IH4S	I	Ilford	H	HP5 Plus	400	S	4x5	Ilford HP5 Plus 400 4x5		BW	bw	active	
+IFfT	I	Ilford	F	FP4 Plus	125	T	135	Ilford FP4 Plus 125	36	BW	bw	active	ISO 125 例外码 f
+IFfM	I	Ilford	F	FP4 Plus	125	M	120	Ilford FP4 Plus 125 120		BW	bw	active	
+IFfS	I	Ilford	F	FP4 Plus	125	S	4x5	Ilford FP4 Plus 125 4x5		BW	bw	active	
+ID1T	I	Ilford	D	Delta	100	T	135	Ilford Delta 100	36	BW	bw	active	
+ID1M	I	Ilford	D	Delta	100	M	120	Ilford Delta 100 120		BW	bw	active	
+ID1S	I	Ilford	D	Delta	100	S	4x5	Ilford Delta 100 4x5		BW	bw	active	
+ID4T	I	Ilford	D	Delta	400	T	135	Ilford Delta 400	36	BW	bw	active	
+ID4M	I	Ilford	D	Delta	400	M	120	Ilford Delta 400 120		BW	bw	active	
+IDWT	I	Ilford	D	Delta	3200	T	135	Ilford Delta 3200	36	BW	bw	active	ISO 3200 码 W
+IDWM	I	Ilford	D	Delta	3200	M	120	Ilford Delta 3200 120		BW	bw	active	
+IPbT	I	Ilford	P	Pan F Plus	50	T	135	Ilford Pan F Plus 50	36	BW	bw	active	ISO 50 例外码 b
+IPbM	I	Ilford	P	Pan F Plus	50	M	120	Ilford Pan F Plus 50 120		BW	bw	active	
+IX4T	I	Ilford	X	XP2 Super	400	T	135	Ilford XP2 Super 400	36	C-41	bw	active	C-41 工艺的黑白卷
+IX4M	I	Ilford	X	XP2 Super	400	M	120	Ilford XP2 Super 400 120		C-41	bw	active	
+IOgT	I	Ilford	O	Ortho Plus	80	T	135	Ilford Ortho Plus 80	36	BW	bw	active	ISO 80 例外码 g
+IOgS	I	Ilford	O	Ortho Plus	80	S	4x5	Ilford Ortho Plus 80 4x5		BW	bw	active	
+IS2T	I	Ilford	S	SFX	200	T	135	Ilford SFX 200	36	BW	bw	active	红外敏感
+IK1T	I	Ilford	K	Kentmere Pan	100	T	135	Kentmere Pan 100	36	BW	bw	active	Ilford 旗下平价线
+IK1M	I	Ilford	K	Kentmere Pan	100	M	120	Kentmere Pan 100 120		BW	bw	active	
+IK4T	I	Ilford	K	Kentmere Pan	400	T	135	Kentmere Pan 400	36	BW	bw	active	
+IK4M	I	Ilford	K	Kentmere Pan	400	M	120	Kentmere Pan 400 120		BW	bw	active	
+
+# ── Agfa 爱克发 ─────────────────────────────────────────────
+AV2T	A	Agfa	V	Vista	200	T	135	Agfa Vista 200	36	C-41	color_negative	discontinued	
+AV4T	A	Agfa	V	Vista	400	T	135	Agfa Vista 400	36	C-41	color_negative	discontinued	
+AP1T	A	Agfa	P	APX	100	T	135	Agfa APX 100	36	BW	bw	active	
+AP1M	A	Agfa	P	APX	100	M	120	Agfa APX 100 120		BW	bw	active	
+AP4T	A	Agfa	P	APX	400	T	135	Agfa APX 400	36	BW	bw	active	
+AP4M	A	Agfa	P	APX	400	M	120	Agfa APX 400 120		BW	bw	active	
+AC1T	A	Agfa	C	CT precisa	100	T	135	Agfa CT precisa 100	36	E-6	color_positive	discontinued	
+
+# ── Lomography 乐魔 ─────────────────────────────────────────
+LC1T	L	Lomography	C	Color Negative	100	T	135	Lomography Color Negative 100	36	C-41	color_negative	active	
+LC1M	L	Lomography	C	Color Negative	100	M	120	Lomography Color Negative 100 120		C-41	color_negative	active	
+LC4T	L	Lomography	C	Color Negative	400	T	135	Lomography Color Negative 400	36	C-41	color_negative	active	
+LC4M	L	Lomography	C	Color Negative	400	M	120	Lomography Color Negative 400 120		C-41	color_negative	active	
+LC8T	L	Lomography	C	Color Negative	800	T	135	Lomography Color Negative 800	36	C-41	color_negative	active	
+LG4T	L	Lomography	G	Lady Grey	400	T	135	Lomography Lady Grey 400	36	BW	bw	active	
+LE1T	L	Lomography	E	Earl Grey	100	T	135	Lomography Earl Grey 100	36	BW	bw	active	
+LB4T	L	Lomography	B	Berlin Kino	400	T	135	Lomography Berlin Kino 400	36	BW	bw	active	
+LP1T	L	Lomography	P	Potsdam Kino	100	T	135	Lomography Potsdam Kino 100	36	BW	bw	active	
+LM4T	L	Lomography	M	Metropolis	400	T	135	Lomography LomoChrome Metropolis 400	36	C-41	color_negative	active	
+LM4M	L	Lomography	M	Metropolis	400	M	120	Lomography LomoChrome Metropolis 400 120		C-41	color_negative	active	
+LU4T	L	Lomography	U	Purple	400	T	135	Lomography LomoChrome Purple 100-400	36	C-41	color_negative	active	按 400 编码
+LQ4T	L	Lomography	Q	Turquoise	400	T	135	Lomography LomoChrome Turquoise 100-400	36	C-41	color_negative	active	按 400 编码
+LR2T	L	Lomography	R	Redscale	200	T	135	Lomography Redscale XR 50-200	36	C-41	color_negative	active	按 200 编码
+
+# ── CineStill ───────────────────────────────────────────────
+CT8T	C	CineStill	T	800T	800	T	135	CineStill 800T	36	C-41	color_negative	active	钨丝灯平衡
+CDbT	C	CineStill	D	Daylight	50	T	135	CineStill 50D	36	C-41	color_negative	active	ISO 50 例外码 b
+CD4T	C	CineStill	D	Daylight	400	T	135	CineStill 400D	36	C-41	color_negative	active	
+CXhT	C	CineStill	X	BwXX	250	T	135	CineStill BwXX 250	36	BW	bw	active	ISO 250 例外码 h
+
+# ── Harman ──────────────────────────────────────────────────
+HP2T	H	Harman	P	Phoenix	200	T	135	Harman Phoenix 200	36	C-41	color_negative	active	
+HP2M	H	Harman	P	Phoenix	200	M	120	Harman Phoenix 200 120		C-41	color_negative	active	
+HRfT	H	Harman	R	Red	125	T	135	Harman Red 125	36	C-41	color_negative	active	ISO 125 例外码 f
+
+# ── Rollei 禄来 ─────────────────────────────────────────────
+RPaT	R	Rollei	P	RPX	25	T	135	Rollei RPX 25	36	BW	bw	active	ISO 25 例外码 a
+RP1T	R	Rollei	P	RPX	100	T	135	Rollei RPX 100	36	BW	bw	active	
+RP4T	R	Rollei	P	RPX	400	T	135	Rollei RPX 400	36	BW	bw	active	
+RRgT	R	Rollei	R	Retro	80	T	135	Rollei Retro 80S	36	BW	bw	active	ISO 80 例外码 g
+RS2T	R	Rollei	S	Superpan	200	T	135	Rollei Superpan 200	36	BW	bw	active	
+RI4T	R	Rollei	I	Infrared	400	T	135	Rollei Infrared 400	36	BW	bw	active	
+ROaT	R	Rollei	O	Ortho	25	T	135	Rollei Ortho 25	36	BW	bw	active	ISO 25 例外码 a
+
+# ── ORWO ────────────────────────────────────────────────────
+OW1T	O	ORWO	W	Wolfen	100	T	135	ORWO Wolfen NP100	36	BW	bw	active	
+OW4T	O	ORWO	W	Wolfen	400	T	135	ORWO Wolfen NC400	36	C-41	color_negative	active	
+OW5T	O	ORWO	W	Wolfen	500	T	135	ORWO Wolfen NC500	36	C-41	color_negative	active	
+OW8T	O	ORWO	W	Wolfen	800	T	135	ORWO Wolfen N74	36	BW	bw	active	按 800 编码
+OU1T	O	ORWO	U	UN54	100	T	135	ORWO UN54	36	BW	bw	active	电影黑白卷
+
+# ── Bergger ─────────────────────────────────────────────────
+BP4T	B	Bergger	P	Pancro	400	T	135	Bergger Pancro 400	36	BW	bw	active	
+BP4M	B	Bergger	P	Pancro	400	M	120	Bergger Pancro 400 120		BW	bw	active	
+
+# ── Silberra ────────────────────────────────────────────────
+SC1T	S	Silberra	C	Color	100	T	135	Silberra Color 100	36	C-41	color_negative	active	
+SUdT	S	Silberra	U	Ultima	160	T	135	Silberra Ultima 160	36	BW	bw	active	ISO 160 例外码 d
+SP1T	S	Silberra	P	PAN	100	T	135	Silberra PAN 100	36	BW	bw	active	
+SP2T	S	Silberra	P	PAN	200	T	135	Silberra PAN 200	36	BW	bw	active	
+
+# ── Washi ───────────────────────────────────────────────────
+WVaT	W	Washi	V	Film V	25	T	135	Washi Film V	36	BW	bw	active	ISO 25 例外码 a
+WSbT	W	Washi	S	Film S	50	T	135	Washi Film S	36	BW	bw	active	ISO 50 例外码 b
+
+# ── Foma 福马 ───────────────────────────────────────────────
+QP1T	Q	Foma	P	Fomapan	100	T	135	Fomapan 100	36	BW	bw	active	
+QP1M	Q	Foma	P	Fomapan	100	M	120	Fomapan 100 120		BW	bw	active	
+QP2T	Q	Foma	P	Fomapan	200	T	135	Fomapan 200	36	BW	bw	active	
+QP2M	Q	Foma	P	Fomapan	200	M	120	Fomapan 200 120		BW	bw	active	
+QP4T	Q	Foma	P	Fomapan	400	T	135	Fomapan 400	36	BW	bw	active	
+QP4M	Q	Foma	P	Fomapan	400	M	120	Fomapan 400 120		BW	bw	active	
+QR1T	Q	Foma	R	R100	100	T	135	Fomapan R100	36	反转	bw	active	黑白反转片
+QTeT	Q	Foma	T	Retropan	320	T	135	Foma Retropan 320	36	BW	bw	active	ISO 320 例外码 e
+
+# ── Lucky 乐凯 ──────────────────────────────────────────────
+YC1T	Y	Lucky	C	Color	100	T	135	Lucky 彩色 100	36	C-41	color_negative	active	国产
+YS1T	Y	Lucky	S	SHD	100	T	135	Lucky SHD 100	36	BW	bw	active	国产
+YS4T	Y	Lucky	S	SHD	400	T	135	Lucky SHD 400	36	BW	bw	active	国产
+
+# ── Shanghai 上海 ───────────────────────────────────────────
+ZG1T	Z	Shanghai	G	GP3	100	T	135	Shanghai GP3 100	36	BW	bw	active	国产
+ZG1M	Z	Shanghai	G	GP3	100	M	120	Shanghai GP3 100 120		BW	bw	active	国产
+
+# ── Svema ───────────────────────────────────────────────────
+VF1T	V	Svema	F	Foto	100	T	135	Svema Foto 100	36	BW	bw	active	
+VCfT	V	Svema	C	Color	125	T	135	Svema Color 125	36	C-41	color_negative	active	ISO 125 例外码 f
